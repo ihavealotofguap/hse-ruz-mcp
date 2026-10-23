@@ -6,7 +6,7 @@
    `npx @modelcontextprotocol/inspector node dist/index.js`.
 
 Код: логика запросов лежит в `src/ruz/client.ts` (без зависимостей от MCP SDK), регистрация тулов
-в `src/ruz/tools.ts`. В PR не включайте реальные email, ФИО и ответы API с персональными данными.
+в `src/ruz/tools.ts`.
 
 ## Релиз
 
