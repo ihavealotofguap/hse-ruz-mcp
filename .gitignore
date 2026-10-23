@@ -1,7 +1,8 @@
 node_modules/
 dist/
 *.log
-.claude/settings.local.json
+.claude/
+CLAUDE.md
 .vscode/
 .idea/
 .DS_Store
