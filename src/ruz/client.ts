@@ -3,8 +3,7 @@ import { formatLocalDate } from "../date-utils.js";
 // ВНИМАНИЕ (проверено 2026-09-15): ruz.hse.ru/api/* больше не отвечает JSON напрямую — редиректит
 // на https://www.hse.ru/eduland/schedule/ со страницей "Доступ к РУЗ осуществляется только из
 // внутренней сети НИУ ВШЭ" (нужен Wi-Fi HSE.Student на кампусе или VPN сотрудника). Этот модуль
-// рабочий, но только пока машина, на которой запущен сервер, находится в сети ВШЭ. Вне кампуса
-// расписание надёжнее смотреть через ЕЛК (lk.hse.ru, тулы hsemcp).
+// рабочий, но только пока машина, на которой запущен сервер, находится в сети ВШЭ.
 const BASE_URL = "https://ruz.hse.ru/api";
 
 export interface StudentInfo {
@@ -58,7 +57,7 @@ async function ruzGet<T>(path: string, params: Record<string, string | number>):
   if (!contentType.includes("application/json")) {
     throw new Error(
       "RUZ API вернул не JSON (похоже на редирект вне сети ВШЭ на страницу-заглушку) — нужен " +
-        "Wi-Fi HSE.Student на кампусе или VPN сотрудника. Вне сети ВШЭ используйте elk_get_schedule (тул hsemcp, если подключён)."
+        "Wi-Fi HSE.Student на кампусе или VPN сотрудника."
     );
   }
   const data = (await response.json()) as T | { error: string };

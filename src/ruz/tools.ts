@@ -13,8 +13,7 @@ export function registerRuzTools(server: McpServer): void {
         "Поиск студента, преподавателя, группы или аудитории ВШЭ по подстроке (ФИО, номер группы) " +
         "через API RUZ (ruz.hse.ru/api/search). ВАЖНО: RUZ отдаёт данные только из внутренней сети " +
         "ВШЭ (Wi-Fi HSE.Student на кампусе или VPN сотрудника) — вне сети запрос вернёт ошибку. " +
-        "Для поиска по расписанию вне сети ВШЭ используйте elk_get_schedule (тул hsemcp, если подключён; API ЕЛК, работает " +
-        "из любой сети). Возвращает id и подпись найденных совпадений — id группы/преподавателя " +
+        "Возвращает id и подпись найденных совпадений — id группы/преподавателя " +
         "пригодится для ruz_get_group_schedule.",
       inputSchema: {
         term: z.string().describe("Строка поиска: часть ФИО, номер группы и т.п."),
@@ -31,8 +30,7 @@ export function registerRuzTools(server: McpServer): void {
       description:
         "Расписание занятий студента ВШЭ на заданный период по его корпоративному email " +
         "(login@edu.hse.ru). Использует API RUZ, который отдаёт данные только из внутренней сети " +
-        "ВШЭ (Wi-Fi HSE.Student на кампусе или VPN) — при ошибке подключения вне кампуса " +
-        "используйте elk_get_schedule (тул hsemcp, если подключён) — расписание через API ЕЛК, работает из любой сети.",
+        "ВШЭ (Wi-Fi HSE.Student на кампусе или VPN) — вне сети запрос вернёт ошибку.",
       inputSchema: {
         email: z.string().email().describe("Корпоративный email студента, напр. ivanov@edu.hse.ru"),
         daysAhead: z
