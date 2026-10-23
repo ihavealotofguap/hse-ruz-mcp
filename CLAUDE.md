@@ -59,6 +59,7 @@ hsemcp. Авторизации нет, API отвечает только из в
 - Выделен 2026-10-23 из hsemcp (`src/services/ruz` на коммите `28a1844`) без переноса истории git;
   имена и схемы тулов сохранены. В hsemcp RUZ удалён вместе с запасным источником расписания для
   сводок `my_*` (ветка `remove-ruz`).
-- Открытые PR dependabot на момент 0.1.2: zod 4 (#1 и #6 — дубли), TypeScript 7 (#5, CI падает),
-  @types/node 26 (#4), actions/checkout 7 (#2), actions/setup-node 7 (#3). Мажорные не мержились:
-  zod 4 и TS 7 требуют проверки совместимости с `@modelcontextprotocol/sdk`.
+- 2026-10-24 после 0.1.2 слиты PR dependabot: zod 4 (#6, дубль #1 закрыт), TypeScript 7 (#5),
+  @types/node 26 (#4), actions/checkout 7 (#2), actions/setup-node 7 (#3). TS 7 по умолчанию не
+  подключает `@types`, поэтому в `tsconfig.json` стоит `"types": ["node"]`. Под zod 4 нижняя
+  граница `@modelcontextprotocol/sdk` поднята до `^1.32.2`: ранние 1.x не поддерживают zod 4.
