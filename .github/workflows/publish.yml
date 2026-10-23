@@ -1,9 +1,11 @@
 name: Publish
 
 # Публикация по тегу vX.Y.Z: npm (trusted publishing, без токена) и реестр MCP (GitHub OIDC).
+# Ручной запуск (workflow_dispatch) дотягивает реестр MCP, если версия уже есть в npm.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,16 +22,39 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
-      - name: Check versions match tag
+      - name: Check versions
+        id: version
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          test "$(node -p "require('./package.json').version")" = "$TAG"
-          test "$(jq -r .version server.json)" = "$TAG"
-          test "$(jq -r '.packages[0].version' server.json)" = "$TAG"
+          VERSION="$(node -p "require('./package.json').version")"
+          test "$(jq -r .version server.json)" = "$VERSION"
+          test "$(jq -r '.packages[0].version' server.json)" = "$VERSION"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then test "${GITHUB_REF_NAME#v}" = "$VERSION"; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - run: npm ci
       - run: npm test
-      - run: npm publish --provenance --access public
+
+      - name: Publish to npm
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if npm view "hse-ruz-mcp@$VERSION" version >/dev/null 2>&1; then
+            echo "hse-ruz-mcp@$VERSION уже в npm, пропускаю"
+          else
+            npm publish --provenance --access public
+          fi
+
+      # Реестр MCP проверяет версию в npm, а свежий релиз появляется там не сразу.
+      - name: Wait for npm
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          for i in $(seq 1 30); do
+            npm view "hse-ruz-mcp@$VERSION" version --prefer-online >/dev/null 2>&1 && exit 0
+            sleep 10
+          done
+          echo "hse-ruz-mcp@$VERSION не появился в npm за 5 минут" >&2
+          exit 1
 
       - name: Install mcp-publisher
         run: |
