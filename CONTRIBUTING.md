@@ -10,7 +10,7 @@
 
 ## Релиз
 
-1. Поднять версию в `package.json` и в обоих полях `version` в `server.json`.
+1. Поднять версию в `package.json`, в обоих полях `version` в `server.json` и в `src/index.ts`.
 2. Коммит, тег `vX.Y.Z`, `git push && git push origin vX.Y.Z`.
 3. Workflow `Publish` опубликует пакет в npm и сервер в реестр MCP. Если упал только шаг реестра,
    запустите `Publish` вручную (Actions → Publish → Run workflow): версию в npm он пропустит.
