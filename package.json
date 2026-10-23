@@ -1,0 +1,29 @@
+{
+  "name": "hse-ruz-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for HSE (NIU VShE) RUZ timetable: schedule search for students, groups, lecturers",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "dist/index.js",
+  "bin": {
+    "hse-ruz-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "npm run build && node --test \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "typescript": "^5.5.4"
+  }
+}
