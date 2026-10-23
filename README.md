@@ -65,4 +65,4 @@ claude mcp add hse-ruz-mcp -- node <путь-к-проекту>/dist/index.js
 
 ## Лицензия
 
-[MIT](LICENSE).
+[MIT](LICENSE)
