@@ -5,7 +5,7 @@ import { registerRuzTools } from "./ruz/tools.js";
 
 const server = new McpServer({
   name: "hse-ruz-mcp",
-  version: "0.1.3",
+  version: "0.1.4",
 });
 
 registerRuzTools(server);
