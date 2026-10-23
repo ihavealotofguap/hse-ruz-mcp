@@ -1,0 +1,15 @@
+# Участие в разработке
+
+1. Node.js 22+, `npm install`.
+2. `npm test` — сборка и тесты (`node:test`, `fetch` подменён, сеть ВШЭ не нужна).
+3. Ручная проверка тулов — из сети ВШЭ (Wi-Fi `HSE.Student` или VPN), например через
+   `npx @modelcontextprotocol/inspector node dist/index.js`.
+
+Код: логика запросов — в `src/ruz/client.ts` (без зависимостей от MCP SDK), регистрация тулов — в
+`src/ruz/tools.ts`. В PR не включайте реальные email, ФИО и ответы API с персональными данными.
+
+## Релиз
+
+1. Поднять версию в `package.json` и в обоих полях `version` в `server.json`.
+2. Коммит, тег `vX.Y.Z`, `git push --follow-tags`.
+3. Workflow `Publish` опубликует пакет в npm и сервер в реестр MCP.

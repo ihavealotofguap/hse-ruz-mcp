@@ -1,0 +1,27 @@
+name: Ошибка
+description: Тул работает не так, как ожидалось
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Что произошло
+      description: Какой тул, с какими параметрами, что вернул и что ожидали. Не публикуйте чужие email и ФИО.
+    validations:
+      required: true
+  - type: dropdown
+    id: network
+    attributes:
+      label: Сеть
+      options:
+        - Wi-Fi HSE.Student
+        - VPN ВШЭ
+        - Вне сети ВШЭ
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Окружение
+      description: Версия hse-ruz-mcp, Node.js, ОС, MCP-клиент
+      placeholder: 0.1.0, Node 22, Windows 11, Claude Code

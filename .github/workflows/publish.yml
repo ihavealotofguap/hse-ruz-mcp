@@ -1,0 +1,38 @@
+name: Publish
+
+# Публикация по тегу vX.Y.Z: npm (trusted publishing, без токена) и реестр MCP (GitHub OIDC).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Check versions match tag
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          test "$(node -p "require('./package.json').version")" = "$TAG"
+          test "$(jq -r .version server.json)" = "$TAG"
+          test "$(jq -r '.packages[0].version' server.json)" = "$TAG"
+
+      - run: npm ci
+      - run: npm test
+      - run: npm publish --provenance --access public
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - run: ./mcp-publisher login github-oidc
+      - run: ./mcp-publisher publish

@@ -1,0 +1,10 @@
+name: Предложение
+description: Новый тул или улучшение
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Что нужно и зачем
+    validations:
+      required: true

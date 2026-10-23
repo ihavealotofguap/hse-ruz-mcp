@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ihavealotofguap/hse-ruz-mcp",
+  "title": "HSE RUZ",
+  "description": "HSE University (NIU VShE) RUZ timetable: search people, groups, rooms; get schedules",
+  "repository": {
+    "url": "https://github.com/ihavealotofguap/hse-ruz-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "hse-ruz-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

@@ -1,5 +1,9 @@
 # hse-ruz-mcp
 
+[![CI](https://github.com/ihavealotofguap/hse-ruz-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/ihavealotofguap/hse-ruz-mcp/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/hse-ruz-mcp)](https://www.npmjs.com/package/hse-ruz-mcp)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Локальный MCP-сервер (stdio) для расписания НИУ ВШЭ через API RUZ (`ruz.hse.ru/api`): ищет
 студентов, преподавателей, группы и аудитории, показывает расписание студента по email и расписание группы.
 Логин, пароль и браузер не нужны.
@@ -17,6 +21,27 @@ RUZ отвечает только из внутренней сети ВШЭ (Wi-
 
 Нужен Node.js 22+.
 
+### Claude Code
+
+```sh
+claude mcp add hse-ruz-mcp -- npx -y hse-ruz-mcp
+```
+
+### Claude Desktop, Cursor и другие клиенты
+
+```json
+{
+  "mcpServers": {
+    "hse-ruz-mcp": {
+      "command": "npx",
+      "args": ["-y", "hse-ruz-mcp"]
+    }
+  }
+}
+```
+
+### Из исходников
+
 ```sh
 git clone https://github.com/ihavealotofguap/hse-ruz-mcp.git
 cd hse-ruz-mcp
@@ -24,8 +49,6 @@ npm install
 npm run build
 claude mcp add hse-ruz-mcp -- node <путь-к-проекту>/dist/index.js
 ```
-
-Для Claude Desktop и других клиентов: команда `node`, аргумент: абсолютный путь к `dist/index.js`.
 
 ## Tools
 
@@ -41,6 +64,8 @@ claude mcp add hse-ruz-mcp -- node <путь-к-проекту>/dist/index.js
 
 - `npm run build` собирает проект в `dist/`, `npm run dev` собирает в режиме watch.
 - `npm test` собирает проект и запускает тесты `node:test` (`test/*.test.mjs`, `fetch` подменён, сеть не нужна).
+
+Участие в разработке и выпуск релизов описаны в [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Лицензия
 

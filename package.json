@@ -1,10 +1,28 @@
 {
   "name": "hse-ruz-mcp",
   "version": "0.1.0",
-  "description": "MCP server for HSE (NIU VShE) RUZ timetable: schedule search for students, groups, lecturers",
-  "type": "module",
+  "description": "MCP server for HSE University (NIU VShE) RUZ timetable: search students, groups, lecturers and get schedules",
+  "mcpName": "io.github.ihavealotofguap/hse-ruz-mcp",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "hse",
+    "ruz",
+    "schedule",
+    "timetable",
+    "claude"
+  ],
+  "homepage": "https://github.com/ihavealotofguap/hse-ruz-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/ihavealotofguap/hse-ruz-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ihavealotofguap/hse-ruz-mcp.git"
+  },
   "license": "MIT",
-  "private": true,
+  "type": "module",
   "engines": {
     "node": ">=22"
   },
@@ -12,11 +30,15 @@
   "bin": {
     "hse-ruz-mcp": "dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "dev": "tsc -p tsconfig.json --watch",
-    "test": "npm run build && node --test \"test/*.test.mjs\""
+    "test": "npm run build && node --test \"test/*.test.mjs\"",
+    "prepublishOnly": "npm test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
