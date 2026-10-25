@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { z } from "zod";
+import { clearCache } from "../dist/ruz/client.js";
 import { registerRuzTools } from "../dist/ruz/tools.js";
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = realFetch;
+  clearCache();
 });
 
 /** Собирает зарегистрированные тулы без настоящего McpServer. */

@@ -5,6 +5,7 @@ import * as ruz from "../dist/ruz/client.js";
 const realFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = realFetch;
+  ruz.clearCache();
 });
 
 /** Подменяет fetch: запоминает запрошенные URL и отвечает заданным телом и content-type. */
@@ -227,4 +228,23 @@ test("getStudentInfo: только id, fio и info, без служебных п
     fio: "Иванов",
     info: "БПИ231",
   });
+});
+
+test("кэш: повторный запрос не идёт в RUZ, другие параметры — идут", async () => {
+  const calls = stubFetch([]);
+  const d = new Date(Date.UTC(2026, 0, 5, 9));
+  await ruz.getSchedule("group", 1, d, d);
+  await ruz.getSchedule("group", 1, d, d);
+  assert.equal(calls.length, 1);
+  await ruz.getSchedule("group", 1, d, d, { language: "en" });
+  await ruz.getSchedule("group", 2, d, d);
+  assert.equal(calls.length, 3);
+});
+
+test("кэш: ошибка не кэшируется", async () => {
+  stubFetch("", "text/plain", 500);
+  await assert.rejects(ruz.search("abc"), /HTTP 500/);
+  const calls = stubFetch([{ id: 1, label: "x", type: "student" }]);
+  assert.equal((await ruz.search("abc")).length, 1);
+  assert.equal(calls.length, 1);
 });

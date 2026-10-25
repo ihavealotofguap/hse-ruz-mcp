@@ -8,6 +8,30 @@ const BASE_URL = "https://ruz.hse.ru/api";
 // Без лимита запрос вне сети ВШЭ может висеть до TCP-таймаута ОС (минуты).
 const RUZ_TIMEOUT_MS = 15_000;
 const NETWORK_HINT = "нужен Wi-Fi HSE.Student на кампусе или VPN сотрудника";
+// Повторные вопросы («а завтра?») часто идут в тот же период — не ходим за ним в RUZ снова.
+const CACHE_TTL_MS = 5 * 60_000;
+const CACHE_MAX_ENTRIES = 100;
+const cache = new Map<string, { expires: number; value: unknown }>();
+
+/** Сбрасывает кэш ответов RUZ (для тестов). */
+export function clearCache(): void {
+  cache.clear();
+}
+
+function cacheGet(key: string): unknown {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (entry.expires > Date.now()) return entry.value;
+  cache.delete(key);
+  return undefined;
+}
+
+function cacheSet(key: string, value: unknown): void {
+  cache.delete(key);
+  // Map хранит порядок вставки: первая запись — самая старая.
+  if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value as string);
+  cache.set(key, { expires: Date.now() + CACHE_TTL_MS, value });
+}
 
 /** Только то, что нужно модели: служебные поля studentinfo (uns, email и т.п.) не отдаём. */
 export interface StudentInfo {
@@ -65,6 +89,8 @@ async function ruzGet<T>(
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, String(value));
   }
+  const cached = cacheGet(url.href);
+  if (cached !== undefined) return cached as T;
   const timeout = AbortSignal.timeout(RUZ_TIMEOUT_MS);
   let data: T | { error: string };
   try {
@@ -101,6 +127,8 @@ async function ruzGet<T>(
   if (data && typeof data === "object" && "error" in data) {
     throw new Error(`RUZ API вернул ошибку: ${(data as { error: string }).error}`);
   }
+  // Кэшируем только успешный ответ: ошибку и таймаут следующий вызов перепроверит.
+  cacheSet(url.href, data);
   return data as T;
 }
 
