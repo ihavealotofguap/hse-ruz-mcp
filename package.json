@@ -1,6 +1,6 @@
 {
   "name": "hse-ruz-mcp",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "MCP server for HSE University (NIU VShE) RUZ timetable: search students, groups, lecturers and get schedules",
   "mcpName": "io.github.ihavealotofguap/hse-ruz-mcp",
   "keywords": [
