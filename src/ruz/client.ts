@@ -315,9 +315,12 @@ function pickStrings(
   source: Record<string, unknown>,
   keys: readonly string[]
 ): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(pickNonEmpty(source, keys)).filter(([, v]) => typeof v === "string")
-  ) as Record<string, string>;
+  const picked: Record<string, string> = {};
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string" && value !== "") picked[key] = value;
+  }
+  return picked;
 }
 
 export const LESSON_FIELDS = [
