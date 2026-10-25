@@ -80,9 +80,14 @@ export interface SearchResult {
   [key: string]: unknown;
 }
 
+/**
+ * GET к RUZ: `parse` проверяет ответ и приводит его к нужному виду. В кэш попадает только то, что
+ * `parse` принял: ответ «не найден» или неожиданной формы следующий вызов перепроверит.
+ */
 async function ruzGet<T>(
   path: string,
   params: Record<string, string | number>,
+  parse: (data: unknown) => T,
   signal?: AbortSignal
 ): Promise<T> {
   const url = new URL(`${BASE_URL}/${path}`);
@@ -92,7 +97,7 @@ async function ruzGet<T>(
   const cached = cacheGet(url.href);
   if (cached !== undefined) return cached as T;
   const timeout = AbortSignal.timeout(RUZ_TIMEOUT_MS);
-  let data: T | { error: string };
+  let data: unknown;
   try {
     const response = await fetch(url, {
       headers: { Accept: "application/json" },
@@ -114,7 +119,7 @@ async function ruzGet<T>(
       );
     }
     // Таймаут действует и на чтение тела, поэтому json() — внутри того же try.
-    data = (await response.json()) as T | { error: string };
+    data = await response.json();
   } catch (err) {
     // Отмену клиентом пробрасываем как есть; таймаут — объясняем.
     if (err instanceof Error && err.name === "TimeoutError" && !signal?.aborted) {
@@ -127,9 +132,10 @@ async function ruzGet<T>(
   if (data && typeof data === "object" && "error" in data) {
     throw new Error(`RUZ API вернул ошибку: ${(data as { error: string }).error}`);
   }
-  // Кэшируем только успешный ответ: ошибку и таймаут следующий вызов перепроверит.
-  cacheSet(url.href, data);
-  return data as T;
+  // Кэшируем только принятый ответ: ошибку и таймаут следующий вызов перепроверит.
+  const value = parse(data);
+  cacheSet(url.href, value);
+  return value;
 }
 
 /** `application/json`, `text/json`, `application/problem+json` и т.п., с параметрами или без. */
@@ -154,12 +160,19 @@ function toRuzId(value: unknown): number | undefined {
 
 /** Найти студента ВШЭ по корпоративному email и получить его RUZ id. */
 export async function getStudentInfo(email: string, signal?: AbortSignal): Promise<StudentInfo> {
-  const data = await ruzGet<Record<string, unknown> | null>("studentinfo", { email }, signal);
-  const id = toRuzId(data?.id);
-  if (!data || id === undefined) {
-    throw new Error(`RUZ: студент с email "${email}" не найден (нет id в ответе API)`);
-  }
-  return { ...pickStrings(data, STUDENT_FIELDS), id };
+  return ruzGet(
+    "studentinfo",
+    { email },
+    (data) => {
+      const info = data as Record<string, unknown> | null;
+      const id = toRuzId(info?.id);
+      if (!info || id === undefined) {
+        throw new Error(`RUZ: студент с email "${email}" не найден (нет id в ответе API)`);
+      }
+      return { ...pickStrings(info, STUDENT_FIELDS), id };
+    },
+    signal
+  );
 }
 
 function toRuzDate(d: Date): string {
@@ -174,12 +187,12 @@ export async function getSchedule(
   to: Date,
   { language = "ru", signal }: { language?: Language; signal?: AbortSignal } = {}
 ): Promise<Lesson[]> {
-  const data = await ruzGet<unknown>(
+  return ruzGet(
     `schedule/${type}/${id}`,
     { lng: LANGUAGES[language], start: toRuzDate(from), finish: toRuzDate(to) },
+    (data) => ensureArray<Lesson>(data, `расписания ${type}/${id}`, " — проверьте id и type"),
     signal
   );
-  return ensureArray<Lesson>(data, `расписания ${type}/${id}`, " — проверьте id и type");
 }
 
 /** Поиск людей/групп/аудиторий по подстроке (ФИО, номер группы и т.п.). */
@@ -188,8 +201,12 @@ export async function search(
   type: SearchPersonType = "student",
   signal?: AbortSignal
 ): Promise<SearchResult[]> {
-  const data = await ruzGet<unknown>("search", { term, type }, signal);
-  return ensureArray<SearchResult>(data, `поиска "${term}"`);
+  return ruzGet(
+    "search",
+    { term, type },
+    (data) => ensureArray<SearchResult>(data, `поиска "${term}"`),
+    signal
+  );
 }
 
 const STUDENT_FIELDS = ["fio", "info"] as const;

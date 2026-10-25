@@ -155,6 +155,15 @@ test("кэш: повтор в пределах 5 минут не идёт в RUZ
   assert.equal(calls.length, 2);
 });
 
+test("ответ «не найден» и неожиданной формы не кэшируются", async () => {
+  const calls = stubFetch(null);
+  await assert.rejects(ruz.getStudentInfo("a@edu.hse.ru"), /не найден/);
+  await assert.rejects(ruz.getStudentInfo("a@edu.hse.ru"), /не найден/);
+  await assert.rejects(ruz.search("abc"), /ожидался массив/);
+  await assert.rejects(ruz.search("abc"), /ожидался массив/);
+  assert.equal(calls.length, 4);
+});
+
 test("fetch всегда получает signal с таймаутом", async () => {
   const calls = stubFetch([]);
   await ruz.search("abc");
