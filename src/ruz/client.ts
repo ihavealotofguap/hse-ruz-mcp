@@ -169,11 +169,18 @@ async function fetchRuz<T>(url: URL, parse: (data: unknown) => T, signal: AbortS
     // Таймаут действует и на чтение тела, поэтому json() — внутри того же try.
     data = await response.json();
   } catch (err) {
-    // Отмену клиентом пробрасываем как есть; таймаут — объясняем.
-    if (err instanceof Error && err.name === "TimeoutError" && !signal.aborted) {
-      throw new Error(
-        `RUZ не ответил за ${RUZ_TIMEOUT_MS / 1000} с — вероятно, нет доступа к сети ВШЭ (${NETWORK_HINT}).`
-      );
+    // Отмену клиентом пробрасываем как есть; таймаут и сетевой сбой — объясняем.
+    if (!signal.aborted && err instanceof Error) {
+      if (err.name === "TimeoutError") {
+        throw new Error(
+          `RUZ не ответил за ${RUZ_TIMEOUT_MS / 1000} с — вероятно, нет доступа к сети ВШЭ (${NETWORK_HINT}).`
+        );
+      }
+      // undici сообщает о DNS/TCP/TLS-сбое голым TypeError("fetch failed"), причина — в cause.
+      if (err instanceof TypeError) {
+        const cause = err.cause instanceof Error ? `: ${err.cause.message}` : "";
+        throw new Error(`Не удалось подключиться к RUZ${cause} — ${NETWORK_HINT}.`, { cause: err });
+      }
     }
     throw err;
   }
