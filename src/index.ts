@@ -1,11 +1,15 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerRuzTools } from "./ruz/tools.js";
 
+// Версия берётся из package.json, чтобы при релизе её не нужно было править здесь.
+const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
+
 const server = new McpServer({
   name: "hse-ruz-mcp",
-  version: "0.1.4",
+  version,
 });
 
 registerRuzTools(server);
