@@ -22,14 +22,16 @@ export function clearCache(): void {
 function cacheGet(key: string): unknown {
   const entry = cache.get(key);
   if (!entry) return undefined;
-  if (entry.expires > Date.now()) return entry.value;
   cache.delete(key);
-  return undefined;
+  if (entry.expires <= Date.now()) return undefined;
+  // Переставляем в конец: вытесняется давно не нужная запись, а не часто запрашиваемая.
+  cache.set(key, entry);
+  return entry.value;
 }
 
 function cacheSet(key: string, value: unknown): void {
   cache.delete(key);
-  // Map хранит порядок вставки: первая запись — самая старая.
+  // Map хранит порядок вставки: первая запись — дольше всех не использованная.
   if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value as string);
   cache.set(key, { expires: Date.now() + CACHE_TTL_MS, value });
 }
@@ -169,16 +171,26 @@ async function fetchRuz<T>(url: URL, parse: (data: unknown) => T, signal: AbortS
     // Таймаут действует и на чтение тела, поэтому json() — внутри того же try.
     data = await response.json();
   } catch (err) {
-    // Отмену клиентом пробрасываем как есть; таймаут — объясняем.
-    if (err instanceof Error && err.name === "TimeoutError" && !signal.aborted) {
-      throw new Error(
-        `RUZ не ответил за ${RUZ_TIMEOUT_MS / 1000} с — вероятно, нет доступа к сети ВШЭ (${NETWORK_HINT}).`
-      );
+    // Отмену клиентом пробрасываем как есть; таймаут и сетевой сбой — объясняем.
+    if (!signal.aborted && err instanceof Error) {
+      if (err.name === "TimeoutError") {
+        throw new Error(
+          `RUZ не ответил за ${RUZ_TIMEOUT_MS / 1000} с — вероятно, нет доступа к сети ВШЭ (${NETWORK_HINT}).`
+        );
+      }
+      // undici сообщает о DNS/TCP/TLS-сбое голым TypeError("fetch failed"), причина — в cause.
+      if (err instanceof TypeError) {
+        const cause = err.cause instanceof Error ? `: ${err.cause.message}` : "";
+        throw new Error(`Не удалось подключиться к RUZ${cause} — ${NETWORK_HINT}.`, { cause: err });
+      }
     }
     throw err;
   }
   if (data && typeof data === "object" && "error" in data) {
-    throw new Error(`RUZ API вернул ошибку: ${(data as { error: string }).error}`);
+    const { error } = data as { error: unknown };
+    throw new Error(
+      `RUZ API вернул ошибку: ${typeof error === "string" ? error : JSON.stringify(error)}`
+    );
   }
   // Кэшируем только принятый ответ: ошибку и таймаут следующий вызов перепроверит.
   const value = parse(data);
@@ -192,12 +204,15 @@ function isJsonContentType(contentType: string | null): boolean {
   return /^[a-z]+\/([\w.-]+\+)?json$/.test(mediaType);
 }
 
-/** RUZ на неизвестный id может ответить `null` или `{}` — не выдаём это за пустой список. */
+/**
+ * RUZ на неизвестный id может ответить `null` или `{}` — не выдаём это за пустой список. Элементы,
+ * не являющиеся объектами (`null` и т.п.), выкидываются: иначе одно такое ломало бы весь ответ.
+ */
 function ensureArray<T>(data: unknown, what: string, hint = ""): T[] {
   if (!Array.isArray(data)) {
     throw new Error(`RUZ вернул неожиданный ответ для ${what} (ожидался массив)${hint}`);
   }
-  return data as T[];
+  return data.filter((item) => typeof item === "object" && item !== null && !Array.isArray(item));
 }
 
 /** RUZ id приходит числом, но в части версий API — строкой из цифр. */
@@ -300,9 +315,12 @@ function pickStrings(
   source: Record<string, unknown>,
   keys: readonly string[]
 ): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(pickNonEmpty(source, keys)).filter(([, v]) => typeof v === "string")
-  ) as Record<string, string>;
+  const picked: Record<string, string> = {};
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string" && value !== "") picked[key] = value;
+  }
+  return picked;
 }
 
 export const LESSON_FIELDS = [
