@@ -13,9 +13,10 @@ const CACHE_TTL_MS = 5 * 60_000;
 const CACHE_MAX_ENTRIES = 100;
 const cache = new Map<string, { expires: number; value: unknown }>();
 
-/** Сбрасывает кэш ответов RUZ (для тестов). */
+/** Сбрасывает кэш ответов RUZ и незавершённые запросы (для тестов). */
 export function clearCache(): void {
   cache.clear();
+  inflight.clear();
 }
 
 function cacheGet(key: string): unknown {
@@ -80,6 +81,16 @@ export interface SearchResult {
   [key: string]: unknown;
 }
 
+interface InFlight {
+  promise: Promise<unknown>;
+  controller: AbortController;
+  /** Сколько вызовов ждут этот запрос; отмена последнего из них отменяет и сам запрос. */
+  waiters: number;
+}
+
+// Одинаковые запросы, пока первый ещё идёт, ждут его ответа, а не идут в RUZ повторно.
+const inflight = new Map<string, InFlight>();
+
 /**
  * GET к RUZ: `parse` проверяет ответ и приводит его к нужному виду. В кэш попадает только то, что
  * `parse` принял: ответ «не найден» или неожиданной формы следующий вызов перепроверит.
@@ -94,14 +105,51 @@ async function ruzGet<T>(
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, String(value));
   }
-  const cached = cacheGet(url.href);
+  const key = url.href;
+  const cached = cacheGet(key);
   if (cached !== undefined) return cached as T;
+  signal?.throwIfAborted();
+  let entry = inflight.get(key);
+  // Запрос, который отменили все ждавшие, ещё может висеть в Map до своего завершения.
+  if (!entry || entry.controller.signal.aborted) {
+    const controller = new AbortController();
+    const created: InFlight = {
+      promise: fetchRuz(url, parse, controller.signal).finally(() => {
+        if (inflight.get(key) === created) inflight.delete(key);
+      }),
+      controller,
+      waiters: 0,
+    };
+    inflight.set(key, created);
+    entry = created;
+  }
+  return (await join(entry, signal)) as T;
+}
+
+/** Ждёт общий запрос; отмена `signal` прерывает только это ожидание, пока запрос ждут другие. */
+async function join(entry: InFlight, signal?: AbortSignal): Promise<unknown> {
+  entry.waiters++;
+  let onAbort: (() => void) | undefined;
+  try {
+    if (!signal) return await entry.promise;
+    const aborted = new Promise<never>((_, reject) => {
+      onAbort = () => reject(signal.reason);
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+    return await Promise.race([entry.promise, aborted]);
+  } finally {
+    if (onAbort) signal?.removeEventListener("abort", onAbort);
+    if (--entry.waiters === 0 && signal?.aborted) entry.controller.abort(signal.reason);
+  }
+}
+
+async function fetchRuz<T>(url: URL, parse: (data: unknown) => T, signal: AbortSignal): Promise<T> {
   const timeout = AbortSignal.timeout(RUZ_TIMEOUT_MS);
   let data: unknown;
   try {
     const response = await fetch(url, {
       headers: { Accept: "application/json" },
-      signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
+      signal: AbortSignal.any([timeout, signal]),
     });
     if (!response.ok) {
       // Непрочитанное тело держит соединение открытым до сборки мусора.
@@ -122,7 +170,7 @@ async function ruzGet<T>(
     data = await response.json();
   } catch (err) {
     // Отмену клиентом пробрасываем как есть; таймаут — объясняем.
-    if (err instanceof Error && err.name === "TimeoutError" && !signal?.aborted) {
+    if (err instanceof Error && err.name === "TimeoutError" && !signal.aborted) {
       throw new Error(
         `RUZ не ответил за ${RUZ_TIMEOUT_MS / 1000} с — вероятно, нет доступа к сети ВШЭ (${NETWORK_HINT}).`
       );
