@@ -161,3 +161,21 @@ jobs:
         if: steps.registry.outputs.published == 'false'
       - run: ./mcp-publisher publish
         if: steps.registry.outputs.published == 'false'
+
+      # Релиз на GitHub для каждого тега, у которого его ещё нет: заодно дотягивает старые теги.
+      # Список изменений GitHub собирает сам из PR с прошлого тега; Latest — только у старшей версии.
+      - name: Create GitHub releases
+        if: steps.plan.outputs.release != 'false' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TAGS="$(gh api "repos/$GH_REPO/tags" --paginate --jq '.[].name' | grep '^v' | sort -V)"
+          HAVE="$(gh release list --limit 1000 --json tagName --jq '.[].tagName')"
+          NEWEST="$(echo "$TAGS" | tail -n 1)"
+          for TAG in $TAGS; do
+            if echo "$HAVE" | grep -qxF "$TAG"; then continue; fi
+            LATEST=false
+            if [ "$TAG" = "$NEWEST" ]; then LATEST=true; fi
+            gh release create "$TAG" --verify-tag --generate-notes --title "$TAG" --latest="$LATEST"
+          done
