@@ -131,15 +131,101 @@ for (const body of [null, {}]) {
   });
 }
 
-test("signal клиента доходит до fetch, отмена пробрасывается", async () => {
-  const calls = stubFetch([]);
+/**
+ * Подменяет fetch: ответ (JSON `body`) приходит только после `release()`, а отмена signal
+ * прерывает ожидание, как у настоящего fetch.
+ */
+function stubPendingFetch(body = []) {
+  const calls = [];
+  let release;
+  const released = new Promise((resolve) => {
+    release = resolve;
+  });
+  globalThis.fetch = (url, init) => {
+    calls.push(Object.assign(new URL(url), { init }));
+    return new Promise((resolve, reject) => {
+      init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+      released.then(() =>
+        resolve(
+          new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } })
+        )
+      );
+    });
+  };
+  return { calls, release };
+}
+
+test("отмена signal клиента прерывает запрос к RUZ", async () => {
+  const { calls } = stubPendingFetch();
   const ac = new AbortController();
-  await ruz.search("abc", "student", ac.signal);
-  const signal = calls[0].init.signal;
-  assert.ok(signal instanceof AbortSignal);
-  assert.equal(signal.aborted, false);
+  const pending = ruz.search("abc", "student", ac.signal);
   ac.abort();
-  assert.equal(signal.aborted, true);
+  await assert.rejects(pending, { name: "AbortError" });
+  assert.equal(calls[0].init.signal.aborted, true);
+});
+
+test("уже отменённый signal — запрос не отправляется", async () => {
+  const calls = stubFetch([]);
+  await assert.rejects(ruz.search("abc", "student", AbortSignal.abort()), { name: "AbortError" });
+  assert.equal(calls.length, 0);
+});
+
+test("одновременные одинаковые запросы — один fetch", async () => {
+  const { calls, release } = stubPendingFetch([{ id: 1, label: "A", type: "student" }]);
+  const both = Promise.all([ruz.search("abc"), ruz.search("abc")]);
+  release();
+  const [a, b] = await both;
+  assert.deepEqual(a, [{ id: 1, label: "A", type: "student" }]);
+  assert.deepEqual(b, a);
+  assert.equal(calls.length, 1);
+});
+
+test("отмена одного из ждущих не прерывает запрос для остальных", async () => {
+  const { calls, release } = stubPendingFetch([]);
+  const ac = new AbortController();
+  const cancelled = ruz.search("abc", "student", ac.signal);
+  const other = ruz.search("abc", "student", new AbortController().signal);
+  ac.abort();
+  await assert.rejects(cancelled, { name: "AbortError" });
+  assert.equal(calls[0].init.signal.aborted, false);
+  release();
+  assert.deepEqual(await other, []);
+  assert.equal(calls.length, 1);
+});
+
+test("после отмены всех ждущих новый вызов идёт в RUZ заново", async () => {
+  const { calls, release } = stubPendingFetch([]);
+  const ac = new AbortController();
+  const cancelled = ruz.search("abc", "student", ac.signal);
+  ac.abort();
+  await assert.rejects(cancelled, { name: "AbortError" });
+  assert.equal(calls[0].init.signal.aborted, true);
+  const fresh = ruz.search("abc");
+  release();
+  assert.deepEqual(await fresh, []);
+  assert.equal(calls.length, 2);
+});
+
+test("кэш: повтор в пределах 5 минут не идёт в RUZ, после — идёт", async (t) => {
+  const calls = stubFetch([]);
+  let now = Date.UTC(2026, 0, 5, 9);
+  t.mock.method(Date, "now", () => now);
+  await ruz.search("abc");
+  now += 5 * 60_000 - 1;
+  await ruz.search("abc");
+  assert.equal(calls.length, 1);
+  now += 1;
+  await ruz.search("abc");
+  assert.equal(calls.length, 2);
+});
+
+test("ответ «не найден» и неожиданной формы не кэшируются", async () => {
+  const calls = stubFetch(null);
+  await assert.rejects(ruz.getStudentInfo("a@edu.hse.ru"), /не найден/);
+  await assert.rejects(ruz.getStudentInfo("a@edu.hse.ru"), /не найден/);
+  await assert.rejects(ruz.search("abc"), /ожидался массив/);
+  await assert.rejects(ruz.search("abc"), /ожидался массив/);
+  assert.equal(calls.length, 4);
 });
 
 test("fetch всегда получает signal с таймаутом", async () => {

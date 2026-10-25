@@ -78,7 +78,7 @@ test("ruz_get_my_schedule: id студента из studentinfo идёт в пу
   assert.equal(calls[1].pathname, "/api/schedule/student/77");
 });
 
-test("ruz_get_schedule: extra.signal доходит до fetch, занятия урезаны до известных полей", async () => {
+test("ruz_get_schedule: занятия урезаны до известных полей", async () => {
   const calls = stubFetch([{ discipline: "Матан", date: "2026.01.05", lessonOid: 1 }]);
   const ac = new AbortController();
   const res = await collectTools().ruz_get_schedule.handler(
@@ -90,8 +90,25 @@ test("ruz_get_schedule: extra.signal доходит до fetch, занятия �
     { discipline: "Матан", date: "2026.01.05" },
   ]);
   assert.equal(calls[0].pathname, "/api/schedule/lecturer/5");
+});
+
+test("ruz_get_schedule: отмена extra.signal прерывает запрос к RUZ", async () => {
+  let fetchSignal;
+  globalThis.fetch = (_url, init) => {
+    fetchSignal = init.signal;
+    return new Promise((_, reject) => {
+      init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+    });
+  };
+  const ac = new AbortController();
+  const pending = collectTools().ruz_get_schedule.handler(
+    { type: "group", id: 3, daysAhead: 7, language: "ru" },
+    { signal: ac.signal }
+  );
   ac.abort();
-  assert.equal(calls[0].init.signal.aborted, true);
+  const res = await pending;
+  assert.equal(res.isError, true);
+  assert.equal(fetchSignal.aborted, true);
 });
 
 test("ruz_get_schedule: окно daysAhead=1 — один день", async () => {

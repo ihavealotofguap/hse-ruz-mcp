@@ -119,7 +119,9 @@ export function registerRuzTools(server: McpServer): void {
             type: z.string(),
           })
         ),
-        total: z.number().describe("Сколько совпадений нашёл RUZ, до обрезки по limit"),
+        total: z
+          .number()
+          .describe("Сколько пригодных совпадений (с id) нашёл RUZ, до обрезки по limit"),
       },
       annotations: READ_ONLY,
     },

@@ -4,6 +4,12 @@
 [![npm](https://img.shields.io/npm/v/hse-ruz-mcp)](https://www.npmjs.com/package/hse-ruz-mcp)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+> **English.** A local (stdio) MCP server for the HSE University timetable (RUZ, `ruz.hse.ru/api`).
+> It finds students, lecturers, groups and rooms (`ruz_find_person`) and returns their schedules
+> (`ruz_get_schedule`, or `ruz_get_my_schedule` by a student's `@edu.hse.ru` email). No login needed,
+> but RUZ only answers from inside the HSE network (campus Wi-Fi `HSE.Student` or staff VPN).
+> Install for Claude Code: `claude mcp add hse-ruz-mcp -- npx -y hse-ruz-mcp` (Node.js 22+).
+
 Локальный MCP-сервер (stdio) для расписания НИУ ВШЭ через API RUZ (`ruz.hse.ru/api`): ищет
 студентов, преподавателей, группы и аудитории и показывает их расписание (студента — в том числе по email).
 Логин, пароль и браузер не нужны.
@@ -50,7 +56,7 @@ claude mcp add hse-ruz-mcp -- node <путь-к-проекту>/dist/index.js
 
 | Tool | Что делает |
 |------|------------|
-| `ruz_find_person` | Ищет студента, преподавателя, группу или аудиторию по подстроке (от 2 символов) и возвращает до `limit` совпадений (по умолчанию 20) с id и общим числом `total` (`type`: `student` по умолчанию, `lecturer`, `group`, `auditorium`) |
+| `ruz_find_person` | Ищет студента, преподавателя, группу или аудиторию по подстроке (от 2 символов) и возвращает до `limit` совпадений (по умолчанию 20) с id и общим числом совпадений с id `total` (`type`: `student` по умолчанию, `lecturer`, `group`, `auditorium`) |
 | `ruz_get_schedule` | Возвращает расписание студента, преподавателя, группы или аудитории по RUZ id из `ruz_find_person` (с тем же `type`) |
 | `ruz_get_my_schedule` | Возвращает расписание студента по корпоративному email (`login@edu.hse.ru`) |
 
@@ -63,7 +69,7 @@ claude mcp add hse-ruz-mcp -- node <путь-к-проекту>/dist/index.js
 Расписание возвращается как `{ from, to, lessons }`, где `from` и `to` — фактические даты периода.
 Все тулы только читают данные (аннотация `readOnlyHint`) и описывают формат ответа в `outputSchema`.
 
-Даты считаются по московскому времени при любой часовой зоне машины. Запрос к RUZ прерывается через 15 секунд или когда клиент отменяет вызов. Успешные ответы RUZ кэшируются в памяти на 5 минут.
+Даты считаются по московскому времени при любой часовой зоне машины. Запрос к RUZ прерывается через 15 секунд или когда клиент отменяет вызов. Успешные ответы RUZ кэшируются в памяти на 5 минут, а одинаковые запросы, отправленные одновременно, уходят в RUZ один раз.
 
 ### Примеры запросов
 
