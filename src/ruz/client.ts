@@ -192,7 +192,7 @@ function pickNonEmpty(
   return picked;
 }
 
-const LESSON_FIELDS = [
+export const LESSON_FIELDS = [
   "date",
   "dayOfWeekString",
   "beginLesson",

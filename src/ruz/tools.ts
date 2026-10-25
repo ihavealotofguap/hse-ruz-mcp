@@ -27,6 +27,27 @@ const LANGUAGE = z
   .default("ru")
   .describe("Язык названий дисциплин, аудиторий и т.п.: ru или en");
 
+// Все тулы только читают RUZ — внешний сервис, ответ которого меняется со временем.
+const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+} as const;
+
+// Поля занятия RUZ — строки, но часть версий API отдаёт числа (подгруппа и т.п.).
+const LESSON_SCHEMA = z.object(
+  Object.fromEntries(
+    ruz.LESSON_FIELDS.map((key) => [key, z.union([z.string(), z.number()]).optional()])
+  )
+);
+
+const SCHEDULE_OUTPUT = {
+  from: z.string().describe("Первый день периода, ГГГГ-ММ-ДД"),
+  to: z.string().describe("Последний день периода включительно, ГГГГ-ММ-ДД"),
+  lessons: z.array(LESSON_SCHEMA),
+};
+
 /**
  * Период из `daysAhead` дней, начиная со `startDate` (ГГГГ-ММ-ДД по МСК) или с сегодня: RUZ
  * считает `finish` включительно. Дата берётся в полдень МСК, чтобы день не сдвигался.
@@ -82,6 +103,18 @@ export function registerRuzTools(server: McpServer): void {
         type: z.enum(ruz.SEARCH_TYPES).default("student"),
         limit: z.number().int().min(1).max(100).default(20).describe("Сколько совпадений вернуть"),
       },
+      outputSchema: {
+        results: z.array(
+          z.object({
+            id: z.number(),
+            label: z.string(),
+            description: z.string().optional(),
+            type: z.string(),
+          })
+        ),
+        total: z.number().describe("Сколько совпадений нашёл RUZ, до обрезки по limit"),
+      },
+      annotations: READ_ONLY,
     },
     async ({ term, type, limit }, extra) =>
       runTool(async (signal) => {
@@ -106,6 +139,8 @@ export function registerRuzTools(server: McpServer): void {
         daysAhead: DAYS_AHEAD,
         language: LANGUAGE,
       },
+      outputSchema: SCHEDULE_OUTPUT,
+      annotations: READ_ONLY,
     },
     async ({ type, id, ...options }, extra) =>
       runTool((signal) => scheduleSummary(type, id, options, signal), extra.signal)
@@ -126,6 +161,11 @@ export function registerRuzTools(server: McpServer): void {
         daysAhead: DAYS_AHEAD,
         language: LANGUAGE,
       },
+      outputSchema: {
+        student: z.looseObject({ id: z.number() }).describe("Данные студента из RUZ studentinfo"),
+        ...SCHEDULE_OUTPUT,
+      },
+      annotations: READ_ONLY,
     },
     async ({ email, ...options }, extra) =>
       runTool(async (signal) => {
@@ -147,6 +187,8 @@ export function registerRuzTools(server: McpServer): void {
         daysAhead: DAYS_AHEAD,
         language: LANGUAGE,
       },
+      outputSchema: SCHEDULE_OUTPUT,
+      annotations: READ_ONLY,
     },
     // То же, что ruz_get_schedule с type=group; оставлен, чтобы не ломать существующие сценарии.
     async ({ groupId, ...options }, extra) =>

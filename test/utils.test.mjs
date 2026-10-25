@@ -6,7 +6,15 @@ import { scheduleWindow } from "../dist/ruz/tools.js";
 
 test("runTool: результат сериализуется в компактный JSON", async () => {
   const res = await runTool(async () => ({ a: [1, 2] }));
-  assert.deepEqual(res, { content: [{ type: "text", text: '{"a":[1,2]}' }] });
+  assert.deepEqual(res, {
+    content: [{ type: "text", text: '{"a":[1,2]}' }],
+    structuredContent: { a: [1, 2] },
+  });
+});
+
+test("runTool: массив и строка — без structuredContent", async () => {
+  assert.equal((await runTool(async () => [1])).structuredContent, undefined);
+  assert.equal((await runTool(async () => "x")).structuredContent, undefined);
 });
 
 test("runTool: строка возвращается как есть, undefined — как null", async () => {
