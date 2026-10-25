@@ -192,12 +192,15 @@ function isJsonContentType(contentType: string | null): boolean {
   return /^[a-z]+\/([\w.-]+\+)?json$/.test(mediaType);
 }
 
-/** RUZ на неизвестный id может ответить `null` или `{}` — не выдаём это за пустой список. */
+/**
+ * RUZ на неизвестный id может ответить `null` или `{}` — не выдаём это за пустой список. Элементы,
+ * не являющиеся объектами (`null` и т.п.), выкидываются: иначе одно такое ломало бы весь ответ.
+ */
 function ensureArray<T>(data: unknown, what: string, hint = ""): T[] {
   if (!Array.isArray(data)) {
     throw new Error(`RUZ вернул неожиданный ответ для ${what} (ожидался массив)${hint}`);
   }
-  return data as T[];
+  return data.filter((item) => typeof item === "object" && item !== null && !Array.isArray(item));
 }
 
 /** RUZ id приходит числом, но в части версий API — строкой из цифр. */
