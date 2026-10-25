@@ -114,6 +114,10 @@ test("все тулы только читают и описывают outputSche
   }
 });
 
+test("ruz_get_group_schedule помечен устаревшим", () => {
+  assert.match(collectTools().ruz_get_group_schedule.config.description, /^Устарел/);
+});
+
 test("ruz_find_person: урезает поля, обрезает до limit, отдаёт total", async () => {
   stubFetch([
     { id: 1, label: "Иванов", description: "БПИ231", type: "student", extra: 1 },
