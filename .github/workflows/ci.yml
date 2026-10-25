@@ -24,3 +24,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # Сервер должен считать даты по Москве при любой TZ хоста.
+      - name: npm test (TZ=America/New_York)
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 24
+        run: node --test "test/*.test.mjs"
+        env:
+          TZ: America/New_York

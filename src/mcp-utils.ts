@@ -6,9 +6,10 @@ export interface ToolTextResult {
 
 function toText(data: unknown): string {
   if (typeof data === "string") return data;
-  // JSON.stringify(undefined, ...) возвращает undefined, а не строку — нарушало бы контракт
+  // JSON.stringify(undefined) возвращает undefined, а не строку — нарушало бы контракт
   // ToolTextResult.content[0].text: string, если какой-то тул когда-нибудь ничего не вернёт.
-  return JSON.stringify(data === undefined ? null : data, null, 2);
+  // Компактно, без отступов: расписание на 60 дней с отступами занимает заметно больше контекста.
+  return JSON.stringify(data === undefined ? null : data);
 }
 
 /**
