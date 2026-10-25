@@ -186,3 +186,11 @@ test("toLessonSummary: оставляет только известные неп
     "subGroup",
   ]);
 });
+
+test("toSearchSummary: известные непустые поля, id строкой приводится к числу", () => {
+  assert.deepEqual(
+    ruz.toSearchSummary({ id: "12", label: "БПИ231", description: "", type: "group", kind: 3 }),
+    { id: 12, label: "БПИ231", type: "group" }
+  );
+  assert.equal(ruz.toSearchSummary({ id: "abc", label: "x", type: "group" }), undefined);
+});

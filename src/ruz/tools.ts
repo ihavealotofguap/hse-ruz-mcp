@@ -41,7 +41,8 @@ export function registerRuzTools(server: McpServer): void {
         "Поиск студента, преподавателя, группы или аудитории ВШЭ по подстроке (ФИО, номер группы) " +
         "через API RUZ (ruz.hse.ru/api/search). ВАЖНО: RUZ отдаёт данные только из внутренней сети " +
         "ВШЭ (Wi-Fi HSE.Student на кампусе или VPN сотрудника) — вне сети запрос вернёт ошибку. " +
-        "Возвращает id и подпись найденных совпадений — id с тем же type передаётся в ruz_get_schedule.",
+        "Возвращает до limit совпадений (id и подпись) и их общее число total — id с тем же type " +
+        "передаётся в ruz_get_schedule. Если total больше limit, уточните запрос.",
       inputSchema: {
         term: z
           .string()
@@ -49,10 +50,16 @@ export function registerRuzTools(server: McpServer): void {
           .min(2, "Строка поиска должна содержать хотя бы 2 символа")
           .describe("Строка поиска: часть ФИО, номер группы и т.п."),
         type: z.enum(ruz.SEARCH_TYPES).default("student"),
+        limit: z.number().int().min(1).max(100).default(20).describe("Сколько совпадений вернуть"),
       },
     },
-    async ({ term, type }, extra) =>
-      runTool((signal) => ruz.search(term, type, signal), extra.signal)
+    async ({ term, type, limit }, extra) =>
+      runTool(async (signal) => {
+        const results = (await ruz.search(term, type, signal))
+          .map(ruz.toSearchSummary)
+          .filter((r) => r !== undefined);
+        return { results: results.slice(0, limit), total: results.length };
+      }, extra.signal)
   );
 
   server.registerTool(

@@ -48,6 +48,7 @@ export type ScheduleType = SearchPersonType;
 export interface SearchResult {
   id: number;
   label: string;
+  description?: string;
   type: string;
   [key: string]: unknown;
 }
@@ -160,6 +161,33 @@ export async function search(
   return ensureArray<SearchResult>(data, `поиска "${term}"`);
 }
 
+const SEARCH_FIELDS = ["id", "label", "description", "type"] as const;
+
+export type SearchSummary = Pick<SearchResult, "id" | "label" | "type"> &
+  Partial<Pick<SearchResult, "description">>;
+
+/**
+ * Только известные непустые поля совпадения поиска — как и для занятий, без служебных полей RUZ.
+ * id приводится к числу; совпадение без валидного id бесполезно (его не передать в расписание) — `undefined`.
+ */
+export function toSearchSummary(result: SearchResult): SearchSummary | undefined {
+  const id = toRuzId(result.id);
+  if (id === undefined) return undefined;
+  return { ...pickNonEmpty(result, SEARCH_FIELDS), id } as SearchSummary;
+}
+
+function pickNonEmpty(
+  source: Record<string, unknown>,
+  keys: readonly string[]
+): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null && value !== "") picked[key] = value;
+  }
+  return picked;
+}
+
 const LESSON_FIELDS = [
   "date",
   "dayOfWeekString",
@@ -189,10 +217,5 @@ export type LessonSummary = Partial<Pick<Lesson, (typeof LESSON_FIELDS)[number]>
  * полей, и на 60 дней расписание раздувается до сотен КБ в контексте модели.
  */
 export function toLessonSummary(lesson: Lesson): LessonSummary {
-  const summary: Record<string, unknown> = {};
-  for (const key of LESSON_FIELDS) {
-    const value = lesson[key];
-    if (value !== undefined && value !== null && value !== "") summary[key] = value;
-  }
-  return summary as LessonSummary;
+  return pickNonEmpty(lesson, LESSON_FIELDS) as LessonSummary;
 }

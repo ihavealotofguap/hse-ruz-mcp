@@ -102,3 +102,19 @@ test("ruz_get_group_schedule: окно daysAhead=1 — один день", async
   assert.equal(calls[0].pathname, "/api/schedule/group/3");
   assert.equal(calls[0].searchParams.get("start"), calls[0].searchParams.get("finish"));
 });
+
+test("ruz_find_person: урезает поля, обрезает до limit, отдаёт total", async () => {
+  stubFetch([
+    { id: 1, label: "Иванов", description: "БПИ231", type: "student", extra: 1 },
+    { id: "2", label: "Иванова", type: "student" },
+    { id: null, label: "без id", type: "student" },
+  ]);
+  const res = await collectTools().ruz_find_person.handler(
+    { term: "Иван", type: "student", limit: 1 },
+    { signal: new AbortController().signal }
+  );
+  assert.deepEqual(JSON.parse(res.content[0].text), {
+    results: [{ id: 1, label: "Иванов", description: "БПИ231", type: "student" }],
+    total: 2,
+  });
+});
