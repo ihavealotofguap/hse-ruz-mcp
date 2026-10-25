@@ -162,7 +162,9 @@ export function registerRuzTools(server: McpServer): void {
         language: LANGUAGE,
       },
       outputSchema: {
-        student: z.looseObject({ id: z.number() }).describe("Данные студента из RUZ studentinfo"),
+        student: z
+          .object({ id: z.number(), fio: z.string().optional(), info: z.string().optional() })
+          .describe("Студент из RUZ studentinfo: id, ФИО (fio) и info"),
         ...SCHEDULE_OUTPUT,
       },
       annotations: READ_ONLY,

@@ -194,3 +194,20 @@ test("ruz_get_schedule: поле неожиданного типа не лома
   assert.deepEqual(res.structuredContent.lessons, [{ discipline: "Матан" }]);
   z.object(tool.config.outputSchema).parse(res.structuredContent);
 });
+
+test("ruz_get_my_schedule: student без служебных полей RUZ", async () => {
+  globalThis.fetch = async (url) => {
+    const body =
+      new URL(url).pathname === "/api/studentinfo"
+        ? { id: 7, fio: "Иванов", info: "БПИ231", uns: "x", email: "a@edu.hse.ru" }
+        : [];
+    return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+  };
+  const tool = collectTools().ruz_get_my_schedule;
+  const res = await tool.handler(
+    { email: "a@edu.hse.ru", daysAhead: 7, language: "ru" },
+    { signal: new AbortController().signal }
+  );
+  assert.deepEqual(res.structuredContent.student, { id: 7, fio: "Иванов", info: "БПИ231" });
+  z.object(tool.config.outputSchema).parse(res.structuredContent);
+});

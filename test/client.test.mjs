@@ -219,3 +219,12 @@ test("toLessonSummary: поля не строкой и не числом вык�
     { discipline: "Матан", subGroup: 2 }
   );
 });
+
+test("getStudentInfo: только id, fio и info, без служебных полей", async () => {
+  stubFetch({ id: 7, fio: "Иванов", info: "БПИ231", uns: "x", email: "a@edu.hse.ru" });
+  assert.deepEqual(await ruz.getStudentInfo("a@edu.hse.ru"), {
+    id: 7,
+    fio: "Иванов",
+    info: "БПИ231",
+  });
+});

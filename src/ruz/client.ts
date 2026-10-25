@@ -9,12 +9,11 @@ const BASE_URL = "https://ruz.hse.ru/api";
 const RUZ_TIMEOUT_MS = 15_000;
 const NETWORK_HINT = "нужен Wi-Fi HSE.Student на кампусе или VPN сотрудника";
 
+/** Только то, что нужно модели: служебные поля studentinfo (uns, email и т.п.) не отдаём. */
 export interface StudentInfo {
   id: number;
-  uns: string;
-  email: string;
-  fio: string;
-  info: string;
+  fio?: string;
+  info?: string;
 }
 
 export interface Lesson {
@@ -127,12 +126,12 @@ function toRuzId(value: unknown): number | undefined {
 
 /** Найти студента ВШЭ по корпоративному email и получить его RUZ id. */
 export async function getStudentInfo(email: string, signal?: AbortSignal): Promise<StudentInfo> {
-  const data = await ruzGet<StudentInfo | null>("studentinfo", { email }, signal);
+  const data = await ruzGet<Record<string, unknown> | null>("studentinfo", { email }, signal);
   const id = toRuzId(data?.id);
   if (!data || id === undefined) {
     throw new Error(`RUZ: студент с email "${email}" не найден (нет id в ответе API)`);
   }
-  return { ...data, id };
+  return { ...pickStrings(data, STUDENT_FIELDS), id };
 }
 
 function toRuzDate(d: Date): string {
@@ -164,6 +163,8 @@ export async function search(
   const data = await ruzGet<unknown>("search", { term, type }, signal);
   return ensureArray<SearchResult>(data, `поиска "${term}"`);
 }
+
+const STUDENT_FIELDS = ["fio", "info"] as const;
 
 const SEARCH_FIELDS = ["label", "description", "type"] as const;
 
