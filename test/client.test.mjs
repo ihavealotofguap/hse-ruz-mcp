@@ -34,12 +34,12 @@ test("ответ не JSON (редирект вне сети ВШЭ) — пон�
 
 test("HTTP-ошибка — исключение с кодом", async () => {
   stubFetch({}, "application/json", 500);
-  await assert.rejects(ruz.search("x"), /RUZ API error 500/);
+  await assert.rejects(ruz.search("x"), /RUZ API: HTTP 500 для \/api\/search/);
 });
 
 test("поле error в ответе — исключение", async () => {
   stubFetch({ error: "bad request" });
-  await assert.rejects(ruz.search("x"), /bad request/);
+  await assert.rejects(ruz.search("x"), /RUZ API вернул ошибку: bad request/);
 });
 
 test("getSchedule: даты по Москве в формате ГГГГ.ММ.ДД при любой TZ хоста", async () => {

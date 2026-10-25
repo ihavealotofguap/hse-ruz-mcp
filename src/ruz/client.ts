@@ -71,7 +71,7 @@ async function ruzGet<T>(
     if (!response.ok) {
       // Непрочитанное тело держит соединение открытым до сборки мусора.
       await response.body?.cancel();
-      throw new Error(`RUZ API error ${response.status} for ${url.pathname}`);
+      throw new Error(`RUZ API: HTTP ${response.status} для ${url.pathname}`);
     }
     // `fetch` следует редиректу вне сети ВШЭ на HTML-страницу-заглушку автоматически, так что
     // response.ok остаётся true — без этой проверки response.json() падает малопонятным
@@ -95,7 +95,7 @@ async function ruzGet<T>(
     throw err;
   }
   if (data && typeof data === "object" && "error" in data) {
-    throw new Error(`RUZ API returned error: ${(data as { error: string }).error}`);
+    throw new Error(`RUZ API вернул ошибку: ${(data as { error: string }).error}`);
   }
   return data as T;
 }
