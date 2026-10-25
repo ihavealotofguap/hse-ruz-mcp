@@ -45,6 +45,34 @@ test("ruz_find_person: пустая и пробельная строка отк�
   assert.equal(term.safeParse("  Иванов ").data, "Иванов");
 });
 
+test("id из строки RUZ приводится к числу, мусор отклоняется", () => {
+  const tools = collectTools();
+  for (const [name, key] of [["ruz_get_schedule", "id"], ["ruz_get_group_schedule", "groupId"]]) {
+    const schema = tools[name].config.inputSchema[key];
+    assert.equal(schema.parse("123"), 123);
+    assert.equal(schema.parse(5), 5);
+    assert.equal(schema.safeParse("abc").success, false);
+    assert.equal(schema.safeParse(0).success, false);
+  }
+});
+
+test("ruz_get_my_schedule: id студента из studentinfo идёт в путь расписания", async () => {
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    calls.push(u);
+    const body = u.pathname === "/api/studentinfo" ? { id: "77", fio: "Иванов" } : [];
+    return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+  };
+  const res = await collectTools().ruz_get_my_schedule.handler(
+    { email: "a@edu.hse.ru", daysAhead: 7 },
+    { signal: new AbortController().signal }
+  );
+  assert.equal(res.isError, undefined);
+  assert.deepEqual(JSON.parse(res.content[0].text), { student: { id: 77, fio: "Иванов" }, lessons: [] });
+  assert.equal(calls[1].pathname, "/api/schedule/student/77");
+});
+
 test("ruz_get_schedule: extra.signal доходит до fetch, занятия урезаны до известных полей", async () => {
   const calls = stubFetch([{ discipline: "Матан", date: "2026.01.05", lessonOid: 1 }]);
   const ac = new AbortController();

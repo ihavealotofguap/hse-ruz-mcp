@@ -60,6 +60,15 @@ test("getGroupSchedule: даты по Москве в формате ГГГГ.М
 test("getStudentInfo: ответ без id — ошибка «не найден»", async () => {
   stubFetch({});
   await assert.rejects(ruz.getStudentInfo("a@edu.hse.ru"), /не найден/);
+  stubFetch(null);
+  await assert.rejects(ruz.getStudentInfo("a@edu.hse.ru"), /не найден/);
+});
+
+test("getStudentInfo: id строкой из цифр приводится к числу", async () => {
+  stubFetch({ id: "123456", fio: "Иванов" });
+  const student = await ruz.getStudentInfo("a@edu.hse.ru");
+  assert.equal(student.id, 123456);
+  assert.equal(student.fio, "Иванов");
 });
 
 test("text/json и +json тоже принимаются как JSON", async () => {

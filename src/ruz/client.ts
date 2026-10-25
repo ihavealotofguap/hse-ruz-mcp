@@ -107,13 +107,20 @@ function ensureArray<T>(data: unknown, what: string): T[] {
   return data as T[];
 }
 
+/** RUZ id приходит числом, но в части версий API — строкой из цифр. */
+function toRuzId(value: unknown): number | undefined {
+  const id = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
+  return typeof id === "number" && Number.isSafeInteger(id) && id > 0 ? id : undefined;
+}
+
 /** Найти студента ВШЭ по корпоративному email и получить его RUZ id. */
 export async function getStudentInfo(email: string, signal?: AbortSignal): Promise<StudentInfo> {
-  const data = await ruzGet<StudentInfo>("studentinfo", { email }, signal);
-  if (!data || typeof data.id !== "number") {
+  const data = await ruzGet<StudentInfo | null>("studentinfo", { email }, signal);
+  const id = toRuzId(data?.id);
+  if (!data || id === undefined) {
     throw new Error(`RUZ: студент с email "${email}" не найден (нет id в ответе API)`);
   }
-  return data;
+  return { ...data, id };
 }
 
 function toRuzDate(d: Date): string {

@@ -5,6 +5,8 @@ import { addDays } from "../date-utils.js";
 import * as ruz from "./client.js";
 
 const SEARCH_TYPES = ["student", "lecturer", "group", "auditorium"] as const;
+// coerce: RUZ в части версий API отдаёт id строкой, и модель передаёт его как есть.
+const RUZ_ID = z.coerce.number().int().positive();
 
 const DAYS_AHEAD = z
   .number()
@@ -51,7 +53,7 @@ export function registerRuzTools(server: McpServer): void {
         "ruz_find_person с тем же type) на заданное число дней, включая сегодня.",
       inputSchema: {
         type: z.enum(SEARCH_TYPES).describe("Тип объекта, как в ruz_find_person"),
-        id: z.number().int().positive().describe("RUZ id из ruz_find_person"),
+        id: RUZ_ID.describe("RUZ id из ruz_find_person"),
         daysAhead: DAYS_AHEAD,
       },
     },
@@ -93,7 +95,7 @@ export function registerRuzTools(server: McpServer): void {
         "Расписание занятий учебной группы ВШЭ по её RUZ id (узнать id — ruz_find_person с type=group) " +
         "на заданное число дней, включая сегодня.",
       inputSchema: {
-        groupId: z.number().int().positive().describe("RUZ id группы"),
+        groupId: RUZ_ID.describe("RUZ id группы"),
         daysAhead: DAYS_AHEAD,
       },
     },
