@@ -197,6 +197,14 @@ test("ruz_get_schedule: поле неожиданного типа не лома
   z.object(tool.config.outputSchema).parse(res.structuredContent);
 });
 
+test("daysAhead и limit строкой приводятся к числу", () => {
+  const tools = collectTools();
+  assert.equal(tools.ruz_get_schedule.config.inputSchema.daysAhead.parse("3"), 3);
+  assert.equal(tools.ruz_get_schedule.config.inputSchema.daysAhead.parse(undefined), 7);
+  assert.equal(tools.ruz_get_schedule.config.inputSchema.daysAhead.safeParse("61").success, false);
+  assert.equal(tools.ruz_find_person.config.inputSchema.limit.parse("5"), 5);
+});
+
 test("ruz_get_my_schedule: student без служебных полей RUZ", async () => {
   globalThis.fetch = async (url) => {
     const body =
