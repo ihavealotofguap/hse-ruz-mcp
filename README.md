@@ -4,6 +4,12 @@
 [![npm](https://img.shields.io/npm/v/hse-ruz-mcp)](https://www.npmjs.com/package/hse-ruz-mcp)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+> **English.** A local (stdio) MCP server for the HSE University timetable (RUZ, `ruz.hse.ru/api`).
+> It finds students, lecturers, groups and rooms (`ruz_find_person`) and returns their schedules
+> (`ruz_get_schedule`, or `ruz_get_my_schedule` by a student's `@edu.hse.ru` email). No login needed,
+> but RUZ only answers from inside the HSE network (campus Wi-Fi `HSE.Student` or staff VPN).
+> Install for Claude Code: `claude mcp add hse-ruz-mcp -- npx -y hse-ruz-mcp` (Node.js 22+).
+
 Локальный MCP-сервер (stdio) для расписания НИУ ВШЭ через API RUZ (`ruz.hse.ru/api`): ищет
 студентов, преподавателей, группы и аудитории и показывает их расписание (студента — в том числе по email).
 Логин, пароль и браузер не нужны.
