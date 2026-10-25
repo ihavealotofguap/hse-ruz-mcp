@@ -77,23 +77,33 @@ jobs:
       - run: npm test
         if: steps.plan.outputs.release != 'false'
 
-      # Пушим до публикации: если master уже ушёл вперёд, push упадёт и в npm ничего не уйдёт.
-      # Push через GITHUB_TOKEN не запускает workflow заново.
+      # Коммит и тег создаются через API: такой коммит GitHub подписывает сам, и тег в списке
+      # помечен Verified. Master двигаем до публикации и без force: если он уже ушёл вперёд,
+      # шаг упадёт и в npm ничего не уйдёт. Изменения через GITHUB_TOKEN не запускают workflow.
       - name: Commit and tag release
         if: steps.plan.outputs.release == 'true'
         env:
           VERSION: ${{ steps.plan.outputs.version || steps.version.outputs.version }}
           BUMP: ${{ steps.plan.outputs.bump }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          API="repos/$GITHUB_REPOSITORY/git"
+          SHA="$(git rev-parse HEAD)"
           if [ "$BUMP" = true ]; then
-            git commit -q -am "Release $VERSION"
-            git tag "v$VERSION"
-            git push --atomic origin HEAD:master "v$VERSION"
-          elif ! git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
-            git tag "v$VERSION"
-            git push origin "v$VERSION"
+            TREE="$(jq -n --arg base "$(git rev-parse 'HEAD^{tree}')" \
+              --rawfile pkg package.json --rawfile lock package-lock.json --rawfile srv server.json \
+              '{base_tree: $base, tree: [
+                {path: "package.json", mode: "100644", type: "blob", content: $pkg},
+                {path: "package-lock.json", mode: "100644", type: "blob", content: $lock},
+                {path: "server.json", mode: "100644", type: "blob", content: $srv}]}' |
+              gh api "$API/trees" --input - --jq .sha)"
+            SHA="$(jq -n --arg tree "$TREE" --arg parent "$SHA" --arg msg "Release $VERSION" \
+              '{message: $msg, tree: $tree, parents: [$parent]}' |
+              gh api "$API/commits" --input - --jq .sha)"
+            gh api -X PATCH "$API/refs/heads/master" -f sha="$SHA" -F force=false >/dev/null
+          fi
+          if ! git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+            gh api "$API/refs" -f ref="refs/tags/v$VERSION" -f sha="$SHA" >/dev/null
           fi
 
       - name: Publish to npm
