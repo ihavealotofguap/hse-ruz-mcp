@@ -22,14 +22,16 @@ export function clearCache(): void {
 function cacheGet(key: string): unknown {
   const entry = cache.get(key);
   if (!entry) return undefined;
-  if (entry.expires > Date.now()) return entry.value;
   cache.delete(key);
-  return undefined;
+  if (entry.expires <= Date.now()) return undefined;
+  // Переставляем в конец: вытесняется давно не нужная запись, а не часто запрашиваемая.
+  cache.set(key, entry);
+  return entry.value;
 }
 
 function cacheSet(key: string, value: unknown): void {
   cache.delete(key);
-  // Map хранит порядок вставки: первая запись — самая старая.
+  // Map хранит порядок вставки: первая запись — дольше всех не использованная.
   if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value as string);
   cache.set(key, { expires: Date.now() + CACHE_TTL_MS, value });
 }
