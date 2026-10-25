@@ -46,8 +46,16 @@ test("addDays: сдвиг на сутки, через границу месяц�
 
 test("scheduleWindow: daysAhead дней включительно, начиная с сегодня", () => {
   const now = new Date(Date.UTC(2026, 0, 4, 22, 30)); // пн 05.01 01:30 МСК
-  const { from, to } = scheduleWindow(7, now);
+  const { from, to } = scheduleWindow(7, undefined, now);
   assert.equal(formatMoscowDate(from, "."), "2026.01.05");
   assert.equal(formatMoscowDate(to, "."), "2026.01.11");
-  assert.equal(formatMoscowDate(scheduleWindow(1, now).to, "."), "2026.01.05");
+  assert.equal(formatMoscowDate(scheduleWindow(1, undefined, now).to, "."), "2026.01.05");
+});
+
+test("scheduleWindow: startDate — день по Москве при любой TZ хоста", () => {
+  const now = new Date(Date.UTC(2026, 0, 4, 22, 30));
+  const { from, to } = scheduleWindow(7, "2026-01-12", now);
+  assert.equal(formatMoscowDate(from, "."), "2026.01.12");
+  assert.equal(formatMoscowDate(to, "."), "2026.01.18");
+  assert.equal(formatMoscowDate(scheduleWindow(1, "2025-12-31", now).to, "."), "2025.12.31");
 });

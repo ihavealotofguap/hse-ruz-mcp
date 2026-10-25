@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { addDays } from "../date-utils.js";
+import { addDays, formatMoscowDate } from "../date-utils.js";
 import { runTool } from "../mcp-utils.js";
 import * as ruz from "./client.js";
 
@@ -13,23 +13,53 @@ const DAYS_AHEAD = z
   .min(1)
   .max(60)
   .default(7)
-  .describe("Сколько календарных дней получить, включая сегодня (по московскому времени)");
+  .describe("Сколько календарных дней получить, начиная со startDate (по умолчанию с сегодня)");
 
-/** Период из `daysAhead` дней, включая сегодня: RUZ считает `finish` включительно. */
-export function scheduleWindow(daysAhead: number, now = new Date()): { from: Date; to: Date } {
-  return { from: now, to: addDays(now, daysAhead - 1) };
+const START_DATE = z.iso
+  .date()
+  .optional()
+  .describe(
+    "Первый день периода, ГГГГ-ММ-ДД по московскому времени (можно в прошлом). По умолчанию сегодня"
+  );
+
+const LANGUAGE = z
+  .enum(Object.keys(ruz.LANGUAGES) as [ruz.Language, ...ruz.Language[]])
+  .default("ru")
+  .describe("Язык названий дисциплин, аудиторий и т.п.: ru или en");
+
+/**
+ * Период из `daysAhead` дней, начиная со `startDate` (ГГГГ-ММ-ДД по МСК) или с сегодня: RUZ
+ * считает `finish` включительно. Дата берётся в полдень МСК, чтобы день не сдвигался.
+ */
+export function scheduleWindow(
+  daysAhead: number,
+  startDate?: string,
+  now = new Date()
+): { from: Date; to: Date } {
+  const from = startDate ? new Date(`${startDate}T12:00:00+03:00`) : now;
+  return { from, to: addDays(from, daysAhead - 1) };
 }
 
-/** Расписание на `daysAhead` дней, включая сегодня, урезанное до известных полей. */
+interface ScheduleOptions {
+  daysAhead: number;
+  startDate?: string;
+  language: ruz.Language;
+}
+
+/** Расписание за период, урезанное до известных полей, вместе с фактическими датами периода. */
 async function scheduleSummary(
   type: ruz.ScheduleType,
   id: number,
-  daysAhead: number,
+  { daysAhead, startDate, language }: ScheduleOptions,
   signal?: AbortSignal
-): Promise<ruz.LessonSummary[]> {
-  const { from, to } = scheduleWindow(daysAhead);
-  const lessons = await ruz.getSchedule(type, id, from, to, { signal });
-  return lessons.map(ruz.toLessonSummary);
+): Promise<{ from: string; to: string; lessons: ruz.LessonSummary[] }> {
+  const { from, to } = scheduleWindow(daysAhead, startDate);
+  const lessons = await ruz.getSchedule(type, id, from, to, { language, signal });
+  return {
+    from: formatMoscowDate(from, "-"),
+    to: formatMoscowDate(to, "-"),
+    lessons: lessons.map(ruz.toLessonSummary),
+  };
 }
 
 export function registerRuzTools(server: McpServer): void {
@@ -68,15 +98,17 @@ export function registerRuzTools(server: McpServer): void {
       title: "Расписание по RUZ id",
       description:
         "Расписание студента, преподавателя, группы или аудитории ВШЭ по RUZ id (узнать id — " +
-        "ruz_find_person с тем же type) на заданное число дней, включая сегодня.",
+        "ruz_find_person с тем же type) на daysAhead дней начиная со startDate (по умолчанию с сегодня).",
       inputSchema: {
         type: z.enum(ruz.SEARCH_TYPES).describe("Тип объекта, как в ruz_find_person"),
         id: RUZ_ID.describe("RUZ id из ruz_find_person"),
+        startDate: START_DATE,
         daysAhead: DAYS_AHEAD,
+        language: LANGUAGE,
       },
     },
-    async ({ type, id, daysAhead }, extra) =>
-      runTool((signal) => scheduleSummary(type, id, daysAhead, signal), extra.signal)
+    async ({ type, id, ...options }, extra) =>
+      runTool((signal) => scheduleSummary(type, id, options, signal), extra.signal)
   );
 
   server.registerTool(
@@ -84,21 +116,21 @@ export function registerRuzTools(server: McpServer): void {
     {
       title: "Расписание студента по email",
       description:
-        "Расписание занятий студента ВШЭ по его корпоративному email (login@edu.hse.ru) на заданное " +
-        "число дней, включая сегодня. Использует API RUZ, который отдаёт данные только из внутренней " +
-        "сети ВШЭ (Wi-Fi HSE.Student на кампусе или VPN) — вне сети запрос вернёт ошибку.",
+        "Расписание занятий студента ВШЭ по его корпоративному email (login@edu.hse.ru) на daysAhead " +
+        "дней начиная со startDate (по умолчанию с сегодня). Использует API RUZ, который отдаёт данные " +
+        "только из внутренней сети ВШЭ (Wi-Fi HSE.Student на кампусе или VPN) — вне сети запрос " +
+        "вернёт ошибку.",
       inputSchema: {
         email: z.string().email().describe("Корпоративный email студента, напр. ivanov@edu.hse.ru"),
+        startDate: START_DATE,
         daysAhead: DAYS_AHEAD,
+        language: LANGUAGE,
       },
     },
-    async ({ email, daysAhead }, extra) =>
+    async ({ email, ...options }, extra) =>
       runTool(async (signal) => {
         const student = await ruz.getStudentInfo(email, signal);
-        return {
-          student,
-          lessons: await scheduleSummary("student", student.id, daysAhead, signal),
-        };
+        return { student, ...(await scheduleSummary("student", student.id, options, signal)) };
       }, extra.signal)
   );
 
@@ -108,14 +140,16 @@ export function registerRuzTools(server: McpServer): void {
       title: "Расписание группы",
       description:
         "Расписание занятий учебной группы ВШЭ по её RUZ id (узнать id — ruz_find_person с type=group) " +
-        "на заданное число дней, включая сегодня.",
+        "на daysAhead дней начиная со startDate (по умолчанию с сегодня).",
       inputSchema: {
         groupId: RUZ_ID.describe("RUZ id группы"),
+        startDate: START_DATE,
         daysAhead: DAYS_AHEAD,
+        language: LANGUAGE,
       },
     },
     // То же, что ruz_get_schedule с type=group; оставлен, чтобы не ломать существующие сценарии.
-    async ({ groupId, daysAhead }, extra) =>
-      runTool((signal) => scheduleSummary("group", groupId, daysAhead, signal), extra.signal)
+    async ({ groupId, ...options }, extra) =>
+      runTool((signal) => scheduleSummary("group", groupId, options, signal), extra.signal)
   );
 }

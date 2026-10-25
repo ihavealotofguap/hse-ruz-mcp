@@ -45,6 +45,10 @@ export const SEARCH_TYPES = ["student", "lecturer", "group", "auditorium"] as co
 export type SearchPersonType = (typeof SEARCH_TYPES)[number];
 export type ScheduleType = SearchPersonType;
 
+/** Значения параметра `lng` RUZ: язык названий дисциплин, аудиторий и т.п. */
+export const LANGUAGES = { ru: 1, en: 2 } as const;
+export type Language = keyof typeof LANGUAGES;
+
 export interface SearchResult {
   id: number;
   label: string;
@@ -141,11 +145,11 @@ export async function getSchedule(
   id: number,
   from: Date,
   to: Date,
-  { language = 1, signal }: { language?: 1 | 2; signal?: AbortSignal } = {}
+  { language = "ru", signal }: { language?: Language; signal?: AbortSignal } = {}
 ): Promise<Lesson[]> {
   const data = await ruzGet<unknown>(
     `schedule/${type}/${id}`,
-    { lng: language, start: toRuzDate(from), finish: toRuzDate(to) },
+    { lng: LANGUAGES[language], start: toRuzDate(from), finish: toRuzDate(to) },
     signal
   );
   return ensureArray<Lesson>(data, `расписания ${type}/${id}`, " — проверьте id и type");

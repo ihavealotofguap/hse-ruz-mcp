@@ -187,6 +187,13 @@ test("toLessonSummary: оставляет только известные неп
   ]);
 });
 
+test("getSchedule: language en передаётся как lng=2", async () => {
+  const calls = stubFetch([]);
+  const d = new Date(Date.UTC(2026, 0, 5, 9));
+  await ruz.getSchedule("group", 1, d, d, { language: "en" });
+  assert.equal(calls[0].searchParams.get("lng"), "2");
+});
+
 test("toSearchSummary: известные непустые поля, id строкой приводится к числу", () => {
   assert.deepEqual(
     ruz.toSearchSummary({ id: "12", label: "БПИ231", description: "", type: "group", kind: 3 }),
