@@ -93,5 +93,6 @@ test("ruz_get_group_schedule: окно daysAhead=1 — один день", async
     { groupId: 3, daysAhead: 1 },
     { signal: new AbortController().signal }
   );
+  assert.equal(calls[0].pathname, "/api/schedule/group/3");
   assert.equal(calls[0].searchParams.get("start"), calls[0].searchParams.get("finish"));
 });

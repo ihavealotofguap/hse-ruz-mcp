@@ -42,10 +42,11 @@ test("поле error в ответе — исключение", async () => {
   await assert.rejects(ruz.search("x"), /bad request/);
 });
 
-test("getGroupSchedule: даты по Москве в формате ГГГГ.ММ.ДД при любой TZ хоста", async () => {
+test("getSchedule: даты по Москве в формате ГГГГ.ММ.ДД при любой TZ хоста", async () => {
   const calls = stubFetch([]);
   // 01:30 МСК 5 января = 22:30 UTC 4 января; 23:00 МСК 11 января = 20:00 UTC.
-  await ruz.getGroupSchedule(
+  await ruz.getSchedule(
+    "group",
     42,
     new Date(Date.UTC(2026, 0, 4, 22, 30)),
     new Date(Date.UTC(2026, 0, 11, 20, 0))
@@ -120,7 +121,7 @@ test("getSchedule: пути для преподавателя и аудитор�
 for (const body of [null, {}]) {
   test(`ответ ${JSON.stringify(body)} вместо массива — ошибка, а не «успех»`, async () => {
     stubFetch(body);
-    await assert.rejects(ruz.getGroupSchedule(1, new Date(), new Date()), /ожидался массив/);
+    await assert.rejects(ruz.getSchedule("group", 1, new Date(), new Date()), /ожидался массив/);
     await assert.rejects(ruz.search("abc"), /ожидался массив/);
   });
 }

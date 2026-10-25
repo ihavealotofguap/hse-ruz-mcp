@@ -4,7 +4,6 @@ import { runTool } from "../mcp-utils.js";
 import { addDays } from "../date-utils.js";
 import * as ruz from "./client.js";
 
-const SEARCH_TYPES = ["student", "lecturer", "group", "auditorium"] as const;
 // coerce: RUZ в части версий API отдаёт id строкой, и модель передаёт его как есть.
 const RUZ_ID = z.coerce.number().int().positive();
 
@@ -19,6 +18,18 @@ const DAYS_AHEAD = z
 /** Период из `daysAhead` дней, включая сегодня: RUZ считает `finish` включительно. */
 export function scheduleWindow(daysAhead: number, now = new Date()): { from: Date; to: Date } {
   return { from: now, to: addDays(now, daysAhead - 1) };
+}
+
+/** Расписание на `daysAhead` дней, включая сегодня, урезанное до известных полей. */
+async function scheduleSummary(
+  type: ruz.ScheduleType,
+  id: number,
+  daysAhead: number,
+  signal?: AbortSignal
+): Promise<ruz.LessonSummary[]> {
+  const { from, to } = scheduleWindow(daysAhead);
+  const lessons = await ruz.getSchedule(type, id, from, to, { signal });
+  return lessons.map(ruz.toLessonSummary);
 }
 
 export function registerRuzTools(server: McpServer): void {
@@ -37,7 +48,7 @@ export function registerRuzTools(server: McpServer): void {
           .trim()
           .min(2, "Строка поиска должна содержать хотя бы 2 символа")
           .describe("Строка поиска: часть ФИО, номер группы и т.п."),
-        type: z.enum(SEARCH_TYPES).default("student"),
+        type: z.enum(ruz.SEARCH_TYPES).default("student"),
       },
     },
     async ({ term, type }, extra) =>
@@ -52,17 +63,13 @@ export function registerRuzTools(server: McpServer): void {
         "Расписание студента, преподавателя, группы или аудитории ВШЭ по RUZ id (узнать id — " +
         "ruz_find_person с тем же type) на заданное число дней, включая сегодня.",
       inputSchema: {
-        type: z.enum(SEARCH_TYPES).describe("Тип объекта, как в ruz_find_person"),
+        type: z.enum(ruz.SEARCH_TYPES).describe("Тип объекта, как в ruz_find_person"),
         id: RUZ_ID.describe("RUZ id из ruz_find_person"),
         daysAhead: DAYS_AHEAD,
       },
     },
     async ({ type, id, daysAhead }, extra) =>
-      runTool(async (signal) => {
-        const { from, to } = scheduleWindow(daysAhead);
-        const lessons = await ruz.getSchedule(type, id, from, to, 1, signal);
-        return lessons.map(ruz.toLessonSummary);
-      }, extra.signal)
+      runTool((signal) => scheduleSummary(type, id, daysAhead, signal), extra.signal)
   );
 
   server.registerTool(
@@ -81,9 +88,7 @@ export function registerRuzTools(server: McpServer): void {
     async ({ email, daysAhead }, extra) =>
       runTool(async (signal) => {
         const student = await ruz.getStudentInfo(email, signal);
-        const { from, to } = scheduleWindow(daysAhead);
-        const lessons = await ruz.getSchedule("student", student.id, from, to, 1, signal);
-        return { student, lessons: lessons.map(ruz.toLessonSummary) };
+        return { student, lessons: await scheduleSummary("student", student.id, daysAhead, signal) };
       }, extra.signal)
   );
 
@@ -99,11 +104,8 @@ export function registerRuzTools(server: McpServer): void {
         daysAhead: DAYS_AHEAD,
       },
     },
+    // То же, что ruz_get_schedule с type=group; оставлен, чтобы не ломать существующие сценарии.
     async ({ groupId, daysAhead }, extra) =>
-      runTool(async (signal) => {
-        const { from, to } = scheduleWindow(daysAhead);
-        const lessons = await ruz.getGroupSchedule(groupId, from, to, 1, signal);
-        return lessons.map(ruz.toLessonSummary);
-      }, extra.signal)
+      runTool((signal) => scheduleSummary("group", groupId, daysAhead, signal), extra.signal)
   );
 }

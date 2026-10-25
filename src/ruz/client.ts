@@ -41,7 +41,8 @@ export interface Lesson {
   [key: string]: unknown;
 }
 
-export type SearchPersonType = "student" | "lecturer" | "group" | "auditorium";
+export const SEARCH_TYPES = ["student", "lecturer", "group", "auditorium"] as const;
+export type SearchPersonType = (typeof SEARCH_TYPES)[number];
 export type ScheduleType = SearchPersonType;
 
 export interface SearchResult {
@@ -139,8 +140,7 @@ export async function getSchedule(
   id: number,
   from: Date,
   to: Date,
-  language: 1 | 2 = 1,
-  signal?: AbortSignal
+  { language = 1, signal }: { language?: 1 | 2; signal?: AbortSignal } = {}
 ): Promise<Lesson[]> {
   const data = await ruzGet<unknown>(
     `schedule/${type}/${id}`,
@@ -148,17 +148,6 @@ export async function getSchedule(
     signal
   );
   return ensureArray<Lesson>(data, `расписания ${type}/${id}`, " — проверьте id и type");
-}
-
-/** Расписание группы по её RUZ id. */
-export function getGroupSchedule(
-  groupId: number,
-  from: Date,
-  to: Date,
-  language: 1 | 2 = 1,
-  signal?: AbortSignal
-): Promise<Lesson[]> {
-  return getSchedule("group", groupId, from, to, language, signal);
 }
 
 /** Поиск людей/групп/аудиторий по подстроке (ФИО, номер группы и т.п.). */
