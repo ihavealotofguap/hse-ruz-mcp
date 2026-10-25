@@ -53,7 +53,6 @@ claude mcp add hse-ruz-mcp -- node <путь-к-проекту>/dist/index.js
 | `ruz_find_person` | Ищет студента, преподавателя, группу или аудиторию по подстроке (от 2 символов) и возвращает до `limit` совпадений (по умолчанию 20) с id и общим числом `total` (`type`: `student` по умолчанию, `lecturer`, `group`, `auditorium`) |
 | `ruz_get_schedule` | Возвращает расписание студента, преподавателя, группы или аудитории по RUZ id из `ruz_find_person` (с тем же `type`) |
 | `ruz_get_my_schedule` | Возвращает расписание студента по корпоративному email (`login@edu.hse.ru`) |
-| `ruz_get_group_schedule` | **Устарел**, будет удалён в 0.2.0 — используйте `ruz_get_schedule` с `type=group` |
 
 Параметры периода у всех тулов расписания:
 

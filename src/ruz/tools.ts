@@ -173,25 +173,4 @@ export function registerRuzTools(server: McpServer): void {
         return { student, ...(await scheduleSummary("student", student.id, options, signal)) };
       }, extra.signal)
   );
-
-  server.registerTool(
-    "ruz_get_group_schedule",
-    {
-      title: "Расписание группы (устарел)",
-      description:
-        "Устарел: используйте ruz_get_schedule с type=group, этот тул будет удалён в 0.2.0. " +
-        "Расписание учебной группы ВШЭ по её RUZ id (узнать id — ruz_find_person с type=group).",
-      inputSchema: {
-        groupId: RUZ_ID.describe("RUZ id группы"),
-        startDate: START_DATE,
-        daysAhead: DAYS_AHEAD,
-        language: LANGUAGE,
-      },
-      outputSchema: SCHEDULE_OUTPUT,
-      annotations: READ_ONLY,
-    },
-    // То же, что ruz_get_schedule с type=group; оставлен до 0.2.0, чтобы не ломать сценарии.
-    async ({ groupId, ...options }, extra) =>
-      runTool((signal) => scheduleSummary("group", groupId, options, signal), extra.signal)
-  );
 }

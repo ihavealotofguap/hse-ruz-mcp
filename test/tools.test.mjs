@@ -33,7 +33,6 @@ function stubFetch(body) {
 test("регистрируются все тулы, включая ruz_get_schedule", () => {
   assert.deepEqual(Object.keys(collectTools()).sort(), [
     "ruz_find_person",
-    "ruz_get_group_schedule",
     "ruz_get_my_schedule",
     "ruz_get_schedule",
   ]);
@@ -48,10 +47,7 @@ test("ruz_find_person: пустая и пробельная строка отк�
 
 test("id из строки RUZ приводится к числу, мусор отклоняется", () => {
   const tools = collectTools();
-  for (const [name, key] of [
-    ["ruz_get_schedule", "id"],
-    ["ruz_get_group_schedule", "groupId"],
-  ]) {
+  for (const [name, key] of [["ruz_get_schedule", "id"]]) {
     const schema = tools[name].config.inputSchema[key];
     assert.equal(schema.parse("123"), 123);
     assert.equal(schema.parse(5), 5);
@@ -96,10 +92,10 @@ test("ruz_get_schedule: extra.signal доходит до fetch, занятия �
   assert.equal(calls[0].init.signal.aborted, true);
 });
 
-test("ruz_get_group_schedule: окно daysAhead=1 — один день", async () => {
+test("ruz_get_schedule: окно daysAhead=1 — один день", async () => {
   const calls = stubFetch([]);
-  await collectTools().ruz_get_group_schedule.handler(
-    { groupId: 3, daysAhead: 1, language: "ru" },
+  await collectTools().ruz_get_schedule.handler(
+    { type: "group", id: 3, daysAhead: 1, language: "ru" },
     { signal: new AbortController().signal }
   );
   assert.equal(calls[0].pathname, "/api/schedule/group/3");
@@ -112,10 +108,6 @@ test("все тулы только читают и описывают outputSche
     assert.equal(config.annotations.destructiveHint, false, name);
     assert.ok(config.outputSchema, name);
   }
-});
-
-test("ruz_get_group_schedule помечен устаревшим", () => {
-  assert.match(collectTools().ruz_get_group_schedule.config.description, /^Устарел/);
 });
 
 test("ruz_find_person: урезает поля, обрезает до limit, отдаёт total", async () => {
