@@ -96,10 +96,10 @@ test("ruz_get_schedule: extra.signal доходит до fetch, занятия �
   assert.equal(calls[0].init.signal.aborted, true);
 });
 
-test("ruz_get_group_schedule: окно daysAhead=1 — один день", async () => {
+test("ruz_get_schedule: окно daysAhead=1 — один день", async () => {
   const calls = stubFetch([]);
-  await collectTools().ruz_get_group_schedule.handler(
-    { groupId: 3, daysAhead: 1, language: "ru" },
+  await collectTools().ruz_get_schedule.handler(
+    { type: "group", id: 3, daysAhead: 1, language: "ru" },
     { signal: new AbortController().signal }
   );
   assert.equal(calls[0].pathname, "/api/schedule/group/3");
