@@ -1,5 +1,5 @@
-import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { afterEach, test } from "node:test";
 import * as ruz from "../dist/ruz/client.js";
 
 const realFetch = globalThis.fetch;
@@ -34,12 +34,12 @@ test("ответ не JSON (редирект вне сети ВШЭ) — пон�
 
 test("HTTP-ошибка — исключение с кодом", async () => {
   stubFetch({}, "application/json", 500);
-  await assert.rejects(ruz.search("x"), /RUZ API error 500/);
+  await assert.rejects(ruz.search("x"), /RUZ API: HTTP 500 для \/api\/search/);
 });
 
 test("поле error в ответе — исключение", async () => {
   stubFetch({ error: "bad request" });
-  await assert.rejects(ruz.search("x"), /bad request/);
+  await assert.rejects(ruz.search("x"), /RUZ API вернул ошибку: bad request/);
 });
 
 test("getSchedule: даты по Москве в формате ГГГГ.ММ.ДД при любой TZ хоста", async () => {
@@ -80,14 +80,18 @@ test("text/json и +json тоже принимаются как JSON", async () 
 });
 
 test("не JSON и HTTP-ошибка: тело отменяется, а не висит", async () => {
-  for (const [contentType, status] of [["text/html", 200], ["application/json", 502]]) {
+  for (const [contentType, status] of [
+    ["text/html", 200],
+    ["application/json", 502],
+  ]) {
     let cancelled = false;
     const body = new ReadableStream({
       cancel() {
         cancelled = true;
       },
     });
-    globalThis.fetch = async () => new Response(body, { status, headers: { "content-type": contentType } });
+    globalThis.fetch = async () =>
+      new Response(body, { status, headers: { "content-type": contentType } });
     await assert.rejects(ruz.search("abc"));
     assert.equal(cancelled, true, `${contentType} ${status}`);
   }
@@ -181,4 +185,19 @@ test("toLessonSummary: оставляет только известные неп
     "lecturer_title",
     "subGroup",
   ]);
+});
+
+test("getSchedule: language en передаётся как lng=2", async () => {
+  const calls = stubFetch([]);
+  const d = new Date(Date.UTC(2026, 0, 5, 9));
+  await ruz.getSchedule("group", 1, d, d, { language: "en" });
+  assert.equal(calls[0].searchParams.get("lng"), "2");
+});
+
+test("toSearchSummary: известные непустые поля, id строкой приводится к числу", () => {
+  assert.deepEqual(
+    ruz.toSearchSummary({ id: "12", label: "БПИ231", description: "", type: "group", kind: 3 }),
+    { id: 12, label: "БПИ231", type: "group" }
+  );
+  assert.equal(ruz.toSearchSummary({ id: "abc", label: "x", type: "group" }), undefined);
 });

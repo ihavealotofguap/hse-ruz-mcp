@@ -1,12 +1,20 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
+import { addDays, formatMoscowDate } from "../dist/date-utils.js";
 import { runTool } from "../dist/mcp-utils.js";
-import { formatMoscowDate, addDays } from "../dist/date-utils.js";
 import { scheduleWindow } from "../dist/ruz/tools.js";
 
 test("runTool: результат сериализуется в компактный JSON", async () => {
   const res = await runTool(async () => ({ a: [1, 2] }));
-  assert.deepEqual(res, { content: [{ type: "text", text: '{"a":[1,2]}' }] });
+  assert.deepEqual(res, {
+    content: [{ type: "text", text: '{"a":[1,2]}' }],
+    structuredContent: { a: [1, 2] },
+  });
+});
+
+test("runTool: массив и строка — без structuredContent", async () => {
+  assert.equal((await runTool(async () => [1])).structuredContent, undefined);
+  assert.equal((await runTool(async () => "x")).structuredContent, undefined);
 });
 
 test("runTool: строка возвращается как есть, undefined — как null", async () => {
@@ -46,8 +54,16 @@ test("addDays: сдвиг на сутки, через границу месяц�
 
 test("scheduleWindow: daysAhead дней включительно, начиная с сегодня", () => {
   const now = new Date(Date.UTC(2026, 0, 4, 22, 30)); // пн 05.01 01:30 МСК
-  const { from, to } = scheduleWindow(7, now);
+  const { from, to } = scheduleWindow(7, undefined, now);
   assert.equal(formatMoscowDate(from, "."), "2026.01.05");
   assert.equal(formatMoscowDate(to, "."), "2026.01.11");
-  assert.equal(formatMoscowDate(scheduleWindow(1, now).to, "."), "2026.01.05");
+  assert.equal(formatMoscowDate(scheduleWindow(1, undefined, now).to, "."), "2026.01.05");
+});
+
+test("scheduleWindow: startDate — день по Москве при любой TZ хоста", () => {
+  const now = new Date(Date.UTC(2026, 0, 4, 22, 30));
+  const { from, to } = scheduleWindow(7, "2026-01-12", now);
+  assert.equal(formatMoscowDate(from, "."), "2026.01.12");
+  assert.equal(formatMoscowDate(to, "."), "2026.01.18");
+  assert.equal(formatMoscowDate(scheduleWindow(1, "2025-12-31", now).to, "."), "2025.12.31");
 });

@@ -45,9 +45,14 @@ export const SEARCH_TYPES = ["student", "lecturer", "group", "auditorium"] as co
 export type SearchPersonType = (typeof SEARCH_TYPES)[number];
 export type ScheduleType = SearchPersonType;
 
+/** Значения параметра `lng` RUZ: язык названий дисциплин, аудиторий и т.п. */
+export const LANGUAGES = { ru: 1, en: 2 } as const;
+export type Language = keyof typeof LANGUAGES;
+
 export interface SearchResult {
   id: number;
   label: string;
+  description?: string;
   type: string;
   [key: string]: unknown;
 }
@@ -71,7 +76,7 @@ async function ruzGet<T>(
     if (!response.ok) {
       // Непрочитанное тело держит соединение открытым до сборки мусора.
       await response.body?.cancel();
-      throw new Error(`RUZ API error ${response.status} for ${url.pathname}`);
+      throw new Error(`RUZ API: HTTP ${response.status} для ${url.pathname}`);
     }
     // `fetch` следует редиректу вне сети ВШЭ на HTML-страницу-заглушку автоматически, так что
     // response.ok остаётся true — без этой проверки response.json() падает малопонятным
@@ -95,7 +100,7 @@ async function ruzGet<T>(
     throw err;
   }
   if (data && typeof data === "object" && "error" in data) {
-    throw new Error(`RUZ API returned error: ${(data as { error: string }).error}`);
+    throw new Error(`RUZ API вернул ошибку: ${(data as { error: string }).error}`);
   }
   return data as T;
 }
@@ -140,11 +145,11 @@ export async function getSchedule(
   id: number,
   from: Date,
   to: Date,
-  { language = 1, signal }: { language?: 1 | 2; signal?: AbortSignal } = {}
+  { language = "ru", signal }: { language?: Language; signal?: AbortSignal } = {}
 ): Promise<Lesson[]> {
   const data = await ruzGet<unknown>(
     `schedule/${type}/${id}`,
-    { lng: language, start: toRuzDate(from), finish: toRuzDate(to) },
+    { lng: LANGUAGES[language], start: toRuzDate(from), finish: toRuzDate(to) },
     signal
   );
   return ensureArray<Lesson>(data, `расписания ${type}/${id}`, " — проверьте id и type");
@@ -160,7 +165,34 @@ export async function search(
   return ensureArray<SearchResult>(data, `поиска "${term}"`);
 }
 
-const LESSON_FIELDS = [
+const SEARCH_FIELDS = ["id", "label", "description", "type"] as const;
+
+export type SearchSummary = Pick<SearchResult, "id" | "label" | "type"> &
+  Partial<Pick<SearchResult, "description">>;
+
+/**
+ * Только известные непустые поля совпадения поиска — как и для занятий, без служебных полей RUZ.
+ * id приводится к числу; совпадение без валидного id бесполезно (его не передать в расписание) — `undefined`.
+ */
+export function toSearchSummary(result: SearchResult): SearchSummary | undefined {
+  const id = toRuzId(result.id);
+  if (id === undefined) return undefined;
+  return { ...pickNonEmpty(result, SEARCH_FIELDS), id } as SearchSummary;
+}
+
+function pickNonEmpty(
+  source: Record<string, unknown>,
+  keys: readonly string[]
+): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null && value !== "") picked[key] = value;
+  }
+  return picked;
+}
+
+export const LESSON_FIELDS = [
   "date",
   "dayOfWeekString",
   "beginLesson",
@@ -189,10 +221,5 @@ export type LessonSummary = Partial<Pick<Lesson, (typeof LESSON_FIELDS)[number]>
  * полей, и на 60 дней расписание раздувается до сотен КБ в контексте модели.
  */
 export function toLessonSummary(lesson: Lesson): LessonSummary {
-  const summary: Record<string, unknown> = {};
-  for (const key of LESSON_FIELDS) {
-    const value = lesson[key];
-    if (value !== undefined && value !== null && value !== "") summary[key] = value;
-  }
-  return summary as LessonSummary;
+  return pickNonEmpty(lesson, LESSON_FIELDS) as LessonSummary;
 }

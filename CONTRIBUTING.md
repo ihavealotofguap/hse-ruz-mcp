@@ -2,6 +2,7 @@
 
 1. Node.js 22+, `npm install`.
 2. `npm test` собирает проект и запускает тесты (`node:test`, `fetch` подменён, сеть ВШЭ не нужна).
+   `npm run lint` проверяет линтер и формат (Biome), `npm run format` форматирует код.
 3. Тулы вручную проверяйте из сети ВШЭ (Wi-Fi `HSE.Student` или VPN), например через
    `npx @modelcontextprotocol/inspector node dist/index.js`.
 
