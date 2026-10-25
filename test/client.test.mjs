@@ -62,6 +62,38 @@ test("getStudentInfo: ответ без id — ошибка «не найден�
   await assert.rejects(ruz.getStudentInfo("a@edu.hse.ru"), /не найден/);
 });
 
+test("text/json и +json тоже принимаются как JSON", async () => {
+  for (const type of ["text/json", "application/problem+json; charset=utf-8", "Application/JSON"]) {
+    stubFetch([], type);
+    assert.deepEqual(await ruz.search("abc"), []);
+  }
+});
+
+test("не JSON и HTTP-ошибка: тело отменяется, а не висит", async () => {
+  for (const [contentType, status] of [["text/html", 200], ["application/json", 502]]) {
+    let cancelled = false;
+    const body = new ReadableStream({
+      cancel() {
+        cancelled = true;
+      },
+    });
+    globalThis.fetch = async () => new Response(body, { status, headers: { "content-type": contentType } });
+    await assert.rejects(ruz.search("abc"));
+    assert.equal(cancelled, true, `${contentType} ${status}`);
+  }
+});
+
+test("таймаут во время чтения тела — та же понятная ошибка", async () => {
+  globalThis.fetch = async () => {
+    const res = new Response("[]", { headers: { "content-type": "application/json" } });
+    res.json = async () => {
+      throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    };
+    return res;
+  };
+  await assert.rejects(ruz.search("abc"), /не ответил за 15 с/);
+});
+
 test("getSchedule: пути для преподавателя и аудитории", async () => {
   const calls = stubFetch([]);
   const d = new Date(Date.UTC(2026, 0, 5, 9));

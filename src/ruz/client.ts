@@ -7,6 +7,7 @@ import { formatMoscowDate } from "../date-utils.js";
 const BASE_URL = "https://ruz.hse.ru/api";
 // Без лимита запрос вне сети ВШЭ может висеть до TCP-таймаута ОС (минуты).
 const RUZ_TIMEOUT_MS = 15_000;
+const NETWORK_HINT = "нужен Wi-Fi HSE.Student на кампусе или VPN сотрудника";
 
 export interface StudentInfo {
   id: number;
@@ -54,40 +55,48 @@ async function ruzGet<T>(
     url.searchParams.set(key, String(value));
   }
   const timeout = AbortSignal.timeout(RUZ_TIMEOUT_MS);
-  let response: Response;
+  let data: T | { error: string };
   try {
-    response = await fetch(url, {
+    const response = await fetch(url, {
       headers: { Accept: "application/json" },
       signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
     });
+    if (!response.ok) {
+      // Непрочитанное тело держит соединение открытым до сборки мусора.
+      await response.body?.cancel();
+      throw new Error(`RUZ API error ${response.status} for ${url.pathname}`);
+    }
+    // `fetch` следует редиректу вне сети ВШЭ на HTML-страницу-заглушку автоматически, так что
+    // response.ok остаётся true — без этой проверки response.json() падает малопонятным
+    // SyntaxError вместо явного объяснения причины.
+    if (!isJsonContentType(response.headers.get("content-type"))) {
+      await response.body?.cancel();
+      throw new Error(
+        "RUZ API вернул не JSON (похоже на редирект вне сети ВШЭ на страницу-заглушку) — " +
+          `${NETWORK_HINT}.`
+      );
+    }
+    // Таймаут действует и на чтение тела, поэтому json() — внутри того же try.
+    data = (await response.json()) as T | { error: string };
   } catch (err) {
     // Отмену клиентом пробрасываем как есть; таймаут — объясняем.
     if (err instanceof Error && err.name === "TimeoutError" && !signal?.aborted) {
       throw new Error(
-        `RUZ не ответил за ${RUZ_TIMEOUT_MS / 1000} с — вероятно, нет доступа к сети ВШЭ ` +
-          "(нужен Wi-Fi HSE.Student на кампусе или VPN сотрудника)."
+        `RUZ не ответил за ${RUZ_TIMEOUT_MS / 1000} с — вероятно, нет доступа к сети ВШЭ (${NETWORK_HINT}).`
       );
     }
     throw err;
   }
-  if (!response.ok) {
-    throw new Error(`RUZ API error ${response.status} for ${url.pathname}`);
-  }
-  // `fetch` следует редиректу вне сети ВШЭ на HTML-страницу-заглушку автоматически, так что
-  // response.ok остаётся true — без этой проверки response.json() падает малопонятным
-  // SyntaxError вместо явного объяснения причины.
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.includes("application/json")) {
-    throw new Error(
-      "RUZ API вернул не JSON (похоже на редирект вне сети ВШЭ на страницу-заглушку) — нужен " +
-        "Wi-Fi HSE.Student на кампусе или VPN сотрудника."
-    );
-  }
-  const data = (await response.json()) as T | { error: string };
   if (data && typeof data === "object" && "error" in data) {
     throw new Error(`RUZ API returned error: ${(data as { error: string }).error}`);
   }
   return data as T;
+}
+
+/** `application/json`, `text/json`, `application/problem+json` и т.п., с параметрами или без. */
+function isJsonContentType(contentType: string | null): boolean {
+  const mediaType = (contentType ?? "").split(";")[0].trim().toLowerCase();
+  return /^[a-z]+\/([\w.-]+\+)?json$/.test(mediaType);
 }
 
 /** RUZ на неизвестный id может ответить `null` или `{}` — не выдаём это за пустой список. */
