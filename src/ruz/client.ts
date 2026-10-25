@@ -185,7 +185,10 @@ async function fetchRuz<T>(url: URL, parse: (data: unknown) => T, signal: AbortS
     throw err;
   }
   if (data && typeof data === "object" && "error" in data) {
-    throw new Error(`RUZ API вернул ошибку: ${(data as { error: string }).error}`);
+    const { error } = data as { error: unknown };
+    throw new Error(
+      `RUZ API вернул ошибку: ${typeof error === "string" ? error : JSON.stringify(error)}`
+    );
   }
   // Кэшируем только принятый ответ: ошибку и таймаут следующий вызов перепроверит.
   const value = parse(data);
