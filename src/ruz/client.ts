@@ -27,7 +27,13 @@ export interface Lesson {
   beginLesson: string;
   endLesson: string;
   dayOfWeekString: string;
+  /** В новых версиях API RUZ преподаватель приходит в `lecturer_title`, а не в `lecturer`. */
+  lecturer_title?: string;
+  lecturer_rank?: string;
   group?: string;
+  subGroup?: string;
+  stream?: string;
+  note?: string;
   url1?: string;
   url1Description?: string;
   url2?: string;
@@ -173,9 +179,14 @@ const LESSON_FIELDS = [
   "discipline",
   "kindOfWork",
   "lecturer",
+  "lecturer_title",
+  "lecturer_rank",
   "auditorium",
   "building",
   "group",
+  "subGroup",
+  "stream",
+  "note",
   "url1",
   "url1Description",
   "url2",

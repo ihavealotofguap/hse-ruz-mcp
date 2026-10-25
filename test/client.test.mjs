@@ -155,6 +155,9 @@ test("toLessonSummary: оставляет только известные неп
     beginLesson: "09:30",
     endLesson: "10:50",
     dayOfWeekString: "Пн",
+    lecturer_title: "Иванов Иван Иванович",
+    subGroup: "1",
+    stream: "",
     url1: "",
     lessonOid: 123,
     contentTableOfLessonsOid: 456,
@@ -169,5 +172,7 @@ test("toLessonSummary: оставляет только известные неп
     "endLesson",
     "kindOfWork",
     "lecturer",
+    "lecturer_title",
+    "subGroup",
   ]);
 });
