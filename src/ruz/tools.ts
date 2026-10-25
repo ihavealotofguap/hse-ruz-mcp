@@ -163,7 +163,7 @@ export function registerRuzTools(server: McpServer): void {
         "только из внутренней сети ВШЭ (Wi-Fi HSE.Student на кампусе или VPN) — вне сети запрос " +
         "вернёт ошибку.",
       inputSchema: {
-        email: z.string().email().describe("Корпоративный email студента, напр. ivanov@edu.hse.ru"),
+        email: z.email().describe("Корпоративный email студента, напр. ivanov@edu.hse.ru"),
         startDate: START_DATE,
         daysAhead: DAYS_AHEAD,
         language: LANGUAGE,
