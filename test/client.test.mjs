@@ -103,6 +103,11 @@ test("таймаут во время чтения тела — та же пон�
   await assert.rejects(ruz.search("abc"), /не ответил за 15 с/);
 });
 
+test("ошибка поиска не советует проверять id", async () => {
+  stubFetch({});
+  await assert.rejects(ruz.search("abc"), (err) => !/проверьте id/.test(err.message));
+});
+
 test("getSchedule: пути для преподавателя и аудитории", async () => {
   const calls = stubFetch([]);
   const d = new Date(Date.UTC(2026, 0, 5, 9));

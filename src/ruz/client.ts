@@ -106,9 +106,9 @@ function isJsonContentType(contentType: string | null): boolean {
 }
 
 /** RUZ на неизвестный id может ответить `null` или `{}` — не выдаём это за пустой список. */
-function ensureArray<T>(data: unknown, what: string): T[] {
+function ensureArray<T>(data: unknown, what: string, hint = ""): T[] {
   if (!Array.isArray(data)) {
-    throw new Error(`RUZ вернул неожиданный ответ для ${what} (ожидался массив) — проверьте id`);
+    throw new Error(`RUZ вернул неожиданный ответ для ${what} (ожидался массив)${hint}`);
   }
   return data as T[];
 }
@@ -147,7 +147,7 @@ export async function getSchedule(
     { lng: language, start: toRuzDate(from), finish: toRuzDate(to) },
     signal
   );
-  return ensureArray<Lesson>(data, `расписания ${type}/${id}`);
+  return ensureArray<Lesson>(data, `расписания ${type}/${id}`, " — проверьте id и type");
 }
 
 /** Расписание группы по её RUZ id. */
