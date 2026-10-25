@@ -130,10 +130,25 @@ jobs:
           echo "hse-ruz-mcp@$VERSION не появился в npm за 5 минут" >&2
           exit 1
 
+      # Реестр не принимает версию повторно, а ручной запуск доходит сюда и без нового релиза.
+      - name: Check MCP registry
+        id: registry
+        if: steps.plan.outputs.release != 'false' || github.event_name == 'workflow_dispatch'
+        env:
+          VERSION: ${{ steps.plan.outputs.version || steps.version.outputs.version }}
+        run: |
+          NAME="$(jq -r .name server.json | jq -Rr @uri)"
+          if curl -fsS -o /dev/null "https://registry.modelcontextprotocol.io/v0/servers/$NAME/versions/$VERSION"; then
+            echo "$VERSION уже в реестре MCP, пропускаю"
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Версия и sha256 закреплены: бинарник запускается в джобе с id-token: write. При обновлении
       # хеш брать из registry_<версия>_checksums.txt того же релиза.
       - name: Install mcp-publisher
-        if: steps.plan.outputs.release != 'false' || github.event_name == 'workflow_dispatch'
+        if: steps.registry.outputs.published == 'false'
         env:
           MCP_PUBLISHER_VERSION: v1.8.4
           MCP_PUBLISHER_SHA256: 5dc2fd415369c73551259f31cd33e2aacc9e0d1021e7f08fef1492d93b781628
@@ -143,6 +158,6 @@ jobs:
           echo "$MCP_PUBLISHER_SHA256  mcp-publisher.tar.gz" | sha256sum -c -
           tar xzf mcp-publisher.tar.gz mcp-publisher
       - run: ./mcp-publisher login github-oidc
-        if: steps.plan.outputs.release != 'false' || github.event_name == 'workflow_dispatch'
+        if: steps.registry.outputs.published == 'false'
       - run: ./mcp-publisher publish
-        if: steps.plan.outputs.release != 'false' || github.event_name == 'workflow_dispatch'
+        if: steps.registry.outputs.published == 'false'

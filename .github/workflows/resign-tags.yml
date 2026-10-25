@@ -32,6 +32,7 @@ jobs:
             if [ "$(gh api "$API/commits/$SHA" --jq .commit.verification.verified)" = true ]; then
               continue
             fi
+            echo "$TAG: создаю копию $SHA"
             NEW="$(gh api "$API/git/commits/$SHA" \
               --jq '{message, tree: .tree.sha, parents: [.parents[].sha]}' |
               gh api "$API/git/commits" --input - --jq .sha)"
@@ -39,6 +40,7 @@ jobs:
               echo "$TAG: копия $NEW не подписана, тег не трогаю" >&2
               exit 1
             fi
+            echo "$TAG: перевешиваю на $NEW"
             gh api -X PATCH "$API/git/refs/tags/$TAG" -f sha="$NEW" -F force=true >/dev/null
             echo "$TAG: $SHA -> $NEW"
           done
