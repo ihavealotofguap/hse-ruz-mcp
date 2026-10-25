@@ -65,6 +65,7 @@ claude mcp add hse-ruz-mcp -- node <путь-к-проекту>/dist/index.js
 ## Разработка
 
 - `npm run build` собирает проект в `dist/`, `npm run dev` собирает в режиме watch.
+- `npm run lint` проверяет код линтером и форматтером [Biome](https://biomejs.dev), `npm run format` исправляет то, что можно исправить автоматически.
 - `npm test` собирает проект и запускает тесты `node:test` (`test/*.test.mjs`, `fetch` подменён, сеть не нужна).
 
 Участие в разработке и выпуск релизов описаны в [CONTRIBUTING.md](CONTRIBUTING.md).

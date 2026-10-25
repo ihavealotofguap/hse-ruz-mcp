@@ -1,5 +1,5 @@
-import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { afterEach, test } from "node:test";
 import { registerRuzTools } from "../dist/ruz/tools.js";
 
 const realFetch = globalThis.fetch;
@@ -47,7 +47,10 @@ test("ruz_find_person: пустая и пробельная строка отк�
 
 test("id из строки RUZ приводится к числу, мусор отклоняется", () => {
   const tools = collectTools();
-  for (const [name, key] of [["ruz_get_schedule", "id"], ["ruz_get_group_schedule", "groupId"]]) {
+  for (const [name, key] of [
+    ["ruz_get_schedule", "id"],
+    ["ruz_get_group_schedule", "groupId"],
+  ]) {
     const schema = tools[name].config.inputSchema[key];
     assert.equal(schema.parse("123"), 123);
     assert.equal(schema.parse(5), 5);
@@ -69,7 +72,10 @@ test("ruz_get_my_schedule: id студента из studentinfo идёт в пу
     { signal: new AbortController().signal }
   );
   assert.equal(res.isError, undefined);
-  assert.deepEqual(JSON.parse(res.content[0].text), { student: { id: 77, fio: "Иванов" }, lessons: [] });
+  assert.deepEqual(JSON.parse(res.content[0].text), {
+    student: { id: 77, fio: "Иванов" },
+    lessons: [],
+  });
   assert.equal(calls[1].pathname, "/api/schedule/student/77");
 });
 

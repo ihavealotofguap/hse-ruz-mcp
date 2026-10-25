@@ -23,6 +23,9 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      # На Windows checkout переводит строки в CRLF, и проверка формата падала бы ложно.
+      - run: npm run lint
+        if: matrix.os == 'ubuntu-latest'
       - run: npm test
       # Сервер должен считать даты по Москве при любой TZ хоста.
       - name: npm test (TZ=America/New_York)

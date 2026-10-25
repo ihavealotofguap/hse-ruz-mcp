@@ -1,7 +1,7 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
+import { addDays, formatMoscowDate } from "../dist/date-utils.js";
 import { runTool } from "../dist/mcp-utils.js";
-import { formatMoscowDate, addDays } from "../dist/date-utils.js";
 import { scheduleWindow } from "../dist/ruz/tools.js";
 
 test("runTool: результат сериализуется в компактный JSON", async () => {

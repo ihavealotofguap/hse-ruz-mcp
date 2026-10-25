@@ -1,7 +1,7 @@
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { runTool } from "../mcp-utils.js";
+import { z } from "zod";
 import { addDays } from "../date-utils.js";
+import { runTool } from "../mcp-utils.js";
 import * as ruz from "./client.js";
 
 // coerce: RUZ в части версий API отдаёт id строкой, и модель передаёт его как есть.
@@ -88,7 +88,10 @@ export function registerRuzTools(server: McpServer): void {
     async ({ email, daysAhead }, extra) =>
       runTool(async (signal) => {
         const student = await ruz.getStudentInfo(email, signal);
-        return { student, lessons: await scheduleSummary("student", student.id, daysAhead, signal) };
+        return {
+          student,
+          lessons: await scheduleSummary("student", student.id, daysAhead, signal),
+        };
       }, extra.signal)
   );
 
