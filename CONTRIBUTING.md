@@ -11,7 +11,12 @@
 
 ## Релиз
 
-1. Поднять версию в `package.json` и в обоих полях `version` в `server.json`.
-2. Коммит, тег `vX.Y.Z`, `git push && git push origin vX.Y.Z`.
-3. Workflow `Publish` опубликует пакет в npm и сервер в реестр MCP. Если упал только шаг реестра,
-   запустите `Publish` вручную (Actions → Publish → Run workflow): версию в npm он пропустит.
+Релизить вручную не нужно: после мержа в master, если менялся `src/`, workflow `Publish` сам
+поднимает patch-версию (коммит «Release X.Y.Z» и тег `vX.Y.Z`) и публикует пакет в npm и сервер
+в реестр MCP.
+
+Для minor или major поднимите версию в `package.json` и в обоих полях `version` в `server.json`
+прямо в PR — после мержа опубликуется она, без бампа. Тег ставить не нужно.
+
+Если упал только шаг реестра, запустите `Publish` вручную (Actions → Publish → Run workflow):
+версию в npm он пропустит.
