@@ -142,6 +142,19 @@ test("signal клиента доходит до fetch, отмена пробра
   assert.equal(signal.aborted, true);
 });
 
+test("кэш: повтор в пределах 5 минут не идёт в RUZ, после — идёт", async (t) => {
+  const calls = stubFetch([]);
+  let now = Date.UTC(2026, 0, 5, 9);
+  t.mock.method(Date, "now", () => now);
+  await ruz.search("abc");
+  now += 5 * 60_000 - 1;
+  await ruz.search("abc");
+  assert.equal(calls.length, 1);
+  now += 1;
+  await ruz.search("abc");
+  assert.equal(calls.length, 2);
+});
+
 test("fetch всегда получает signal с таймаутом", async () => {
   const calls = stubFetch([]);
   await ruz.search("abc");
