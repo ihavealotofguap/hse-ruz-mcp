@@ -165,3 +165,32 @@ test("ruz_get_my_schedule: ответ проходит outputSchema", async () =
   );
   z.object(tool.config.outputSchema).parse(res.structuredContent);
 });
+
+test("ruz_find_person: кривое совпадение отбрасывается, а не ломает outputSchema", async () => {
+  stubFetch([
+    { id: 1, label: "Иванов", type: "student" },
+    { id: 2, label: "", type: "student" },
+    { id: 3, label: "Петров" },
+  ]);
+  const tool = collectTools().ruz_find_person;
+  const res = await tool.handler(
+    { term: "Иван", type: "student", limit: 20 },
+    { signal: new AbortController().signal }
+  );
+  assert.deepEqual(res.structuredContent, {
+    results: [{ id: 1, label: "Иванов", type: "student" }],
+    total: 1,
+  });
+  z.object(tool.config.outputSchema).parse(res.structuredContent);
+});
+
+test("ruz_get_schedule: поле неожиданного типа не ломает outputSchema", async () => {
+  stubFetch([{ discipline: "Матан", note: true, subGroup: {} }]);
+  const tool = collectTools().ruz_get_schedule;
+  const res = await tool.handler(
+    { type: "group", id: 3, daysAhead: 1, language: "ru" },
+    { signal: new AbortController().signal }
+  );
+  assert.deepEqual(res.structuredContent.lessons, [{ discipline: "Матан" }]);
+  z.object(tool.config.outputSchema).parse(res.structuredContent);
+});

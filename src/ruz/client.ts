@@ -165,31 +165,50 @@ export async function search(
   return ensureArray<SearchResult>(data, `поиска "${term}"`);
 }
 
-const SEARCH_FIELDS = ["id", "label", "description", "type"] as const;
+const SEARCH_FIELDS = ["label", "description", "type"] as const;
 
 export type SearchSummary = Pick<SearchResult, "id" | "label" | "type"> &
   Partial<Pick<SearchResult, "description">>;
 
 /**
  * Только известные непустые поля совпадения поиска — как и для занятий, без служебных полей RUZ.
- * id приводится к числу; совпадение без валидного id бесполезно (его не передать в расписание) — `undefined`.
+ * id приводится к числу. Совпадение без валидного id (его не передать в расписание) или без
+ * строковых label и type — `undefined`: иначе ответ не прошёл бы outputSchema и SDK отклонил бы
+ * весь вызов тула из-за одного совпадения.
  */
 export function toSearchSummary(result: SearchResult): SearchSummary | undefined {
   const id = toRuzId(result.id);
-  if (id === undefined) return undefined;
-  return { ...pickNonEmpty(result, SEARCH_FIELDS), id } as SearchSummary;
+  const fields = pickStrings(result, SEARCH_FIELDS);
+  if (id === undefined || fields.label === undefined || fields.type === undefined) return undefined;
+  return { ...fields, id } as SearchSummary;
 }
 
+/**
+ * Непустые строки и конечные числа из `keys`. Остальное (null, "", boolean, объекты) выкидывается:
+ * outputSchema тулов допускает только строки и числа, и одно кривое поле ломало бы весь ответ.
+ */
 function pickNonEmpty(
   source: Record<string, unknown>,
   keys: readonly string[]
-): Record<string, unknown> {
-  const picked: Record<string, unknown> = {};
+): Record<string, string | number> {
+  const picked: Record<string, string | number> = {};
   for (const key of keys) {
     const value = source[key];
-    if (value !== undefined && value !== null && value !== "") picked[key] = value;
+    if ((typeof value === "string" && value !== "") || Number.isFinite(value)) {
+      picked[key] = value as string | number;
+    }
   }
   return picked;
+}
+
+/** Как `pickNonEmpty`, но только строки — для полей, которые outputSchema описывает как string. */
+function pickStrings(
+  source: Record<string, unknown>,
+  keys: readonly string[]
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(pickNonEmpty(source, keys)).filter(([, v]) => typeof v === "string")
+  ) as Record<string, string>;
 }
 
 export const LESSON_FIELDS = [

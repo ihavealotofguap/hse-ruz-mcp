@@ -201,3 +201,21 @@ test("toSearchSummary: известные непустые поля, id стро
   );
   assert.equal(ruz.toSearchSummary({ id: "abc", label: "x", type: "group" }), undefined);
 });
+
+test("toSearchSummary: совпадение без строковых label или type отбрасывается", () => {
+  assert.equal(ruz.toSearchSummary({ id: 1, label: "", type: "group" }), undefined);
+  assert.equal(ruz.toSearchSummary({ id: 1, label: "БПИ231" }), undefined);
+  assert.equal(ruz.toSearchSummary({ id: 1, label: 5, type: "group" }), undefined);
+  assert.deepEqual(ruz.toSearchSummary({ id: 1, label: "x", type: "group", description: 3 }), {
+    id: 1,
+    label: "x",
+    type: "group",
+  });
+});
+
+test("toLessonSummary: поля не строкой и не числом выкидываются", () => {
+  assert.deepEqual(
+    ruz.toLessonSummary({ discipline: "Матан", subGroup: 2, note: true, stream: {}, url1: NaN }),
+    { discipline: "Матан", subGroup: 2 }
+  );
+});
