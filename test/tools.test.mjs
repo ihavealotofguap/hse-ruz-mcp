@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { z } from "zod";
+import { clearCache } from "../dist/ruz/client.js";
 import { registerRuzTools } from "../dist/ruz/tools.js";
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = realFetch;
+  clearCache();
 });
 
 /** Собирает зарегистрированные тулы без настоящего McpServer. */
@@ -163,5 +165,59 @@ test("ruz_get_my_schedule: ответ проходит outputSchema", async () =
     { email: "a@edu.hse.ru", daysAhead: 7, language: "ru" },
     { signal: new AbortController().signal }
   );
+  z.object(tool.config.outputSchema).parse(res.structuredContent);
+});
+
+test("ruz_find_person: кривое совпадение отбрасывается, а не ломает outputSchema", async () => {
+  stubFetch([
+    { id: 1, label: "Иванов", type: "student" },
+    { id: 2, label: "", type: "student" },
+    { id: 3, label: "Петров" },
+  ]);
+  const tool = collectTools().ruz_find_person;
+  const res = await tool.handler(
+    { term: "Иван", type: "student", limit: 20 },
+    { signal: new AbortController().signal }
+  );
+  assert.deepEqual(res.structuredContent, {
+    results: [{ id: 1, label: "Иванов", type: "student" }],
+    total: 1,
+  });
+  z.object(tool.config.outputSchema).parse(res.structuredContent);
+});
+
+test("ruz_get_schedule: поле неожиданного типа не ломает outputSchema", async () => {
+  stubFetch([{ discipline: "Матан", note: true, subGroup: {} }]);
+  const tool = collectTools().ruz_get_schedule;
+  const res = await tool.handler(
+    { type: "group", id: 3, daysAhead: 1, language: "ru" },
+    { signal: new AbortController().signal }
+  );
+  assert.deepEqual(res.structuredContent.lessons, [{ discipline: "Матан" }]);
+  z.object(tool.config.outputSchema).parse(res.structuredContent);
+});
+
+test("daysAhead и limit строкой приводятся к числу", () => {
+  const tools = collectTools();
+  assert.equal(tools.ruz_get_schedule.config.inputSchema.daysAhead.parse("3"), 3);
+  assert.equal(tools.ruz_get_schedule.config.inputSchema.daysAhead.parse(undefined), 7);
+  assert.equal(tools.ruz_get_schedule.config.inputSchema.daysAhead.safeParse("61").success, false);
+  assert.equal(tools.ruz_find_person.config.inputSchema.limit.parse("5"), 5);
+});
+
+test("ruz_get_my_schedule: student без служебных полей RUZ", async () => {
+  globalThis.fetch = async (url) => {
+    const body =
+      new URL(url).pathname === "/api/studentinfo"
+        ? { id: 7, fio: "Иванов", info: "БПИ231", uns: "x", email: "a@edu.hse.ru" }
+        : [];
+    return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+  };
+  const tool = collectTools().ruz_get_my_schedule;
+  const res = await tool.handler(
+    { email: "a@edu.hse.ru", daysAhead: 7, language: "ru" },
+    { signal: new AbortController().signal }
+  );
+  assert.deepEqual(res.structuredContent.student, { id: 7, fio: "Иванов", info: "БПИ231" });
   z.object(tool.config.outputSchema).parse(res.structuredContent);
 });

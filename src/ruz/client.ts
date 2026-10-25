@@ -8,13 +8,36 @@ const BASE_URL = "https://ruz.hse.ru/api";
 // Без лимита запрос вне сети ВШЭ может висеть до TCP-таймаута ОС (минуты).
 const RUZ_TIMEOUT_MS = 15_000;
 const NETWORK_HINT = "нужен Wi-Fi HSE.Student на кампусе или VPN сотрудника";
+// Повторные вопросы («а завтра?») часто идут в тот же период — не ходим за ним в RUZ снова.
+const CACHE_TTL_MS = 5 * 60_000;
+const CACHE_MAX_ENTRIES = 100;
+const cache = new Map<string, { expires: number; value: unknown }>();
 
+/** Сбрасывает кэш ответов RUZ (для тестов). */
+export function clearCache(): void {
+  cache.clear();
+}
+
+function cacheGet(key: string): unknown {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (entry.expires > Date.now()) return entry.value;
+  cache.delete(key);
+  return undefined;
+}
+
+function cacheSet(key: string, value: unknown): void {
+  cache.delete(key);
+  // Map хранит порядок вставки: первая запись — самая старая.
+  if (cache.size >= CACHE_MAX_ENTRIES) cache.delete(cache.keys().next().value as string);
+  cache.set(key, { expires: Date.now() + CACHE_TTL_MS, value });
+}
+
+/** Только то, что нужно модели: служебные поля studentinfo (uns, email и т.п.) не отдаём. */
 export interface StudentInfo {
   id: number;
-  uns: string;
-  email: string;
-  fio: string;
-  info: string;
+  fio?: string;
+  info?: string;
 }
 
 export interface Lesson {
@@ -66,6 +89,8 @@ async function ruzGet<T>(
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, String(value));
   }
+  const cached = cacheGet(url.href);
+  if (cached !== undefined) return cached as T;
   const timeout = AbortSignal.timeout(RUZ_TIMEOUT_MS);
   let data: T | { error: string };
   try {
@@ -102,6 +127,8 @@ async function ruzGet<T>(
   if (data && typeof data === "object" && "error" in data) {
     throw new Error(`RUZ API вернул ошибку: ${(data as { error: string }).error}`);
   }
+  // Кэшируем только успешный ответ: ошибку и таймаут следующий вызов перепроверит.
+  cacheSet(url.href, data);
   return data as T;
 }
 
@@ -127,12 +154,12 @@ function toRuzId(value: unknown): number | undefined {
 
 /** Найти студента ВШЭ по корпоративному email и получить его RUZ id. */
 export async function getStudentInfo(email: string, signal?: AbortSignal): Promise<StudentInfo> {
-  const data = await ruzGet<StudentInfo | null>("studentinfo", { email }, signal);
+  const data = await ruzGet<Record<string, unknown> | null>("studentinfo", { email }, signal);
   const id = toRuzId(data?.id);
   if (!data || id === undefined) {
     throw new Error(`RUZ: студент с email "${email}" не найден (нет id в ответе API)`);
   }
-  return { ...data, id };
+  return { ...pickStrings(data, STUDENT_FIELDS), id };
 }
 
 function toRuzDate(d: Date): string {
@@ -165,31 +192,52 @@ export async function search(
   return ensureArray<SearchResult>(data, `поиска "${term}"`);
 }
 
-const SEARCH_FIELDS = ["id", "label", "description", "type"] as const;
+const STUDENT_FIELDS = ["fio", "info"] as const;
+
+const SEARCH_FIELDS = ["label", "description", "type"] as const;
 
 export type SearchSummary = Pick<SearchResult, "id" | "label" | "type"> &
   Partial<Pick<SearchResult, "description">>;
 
 /**
  * Только известные непустые поля совпадения поиска — как и для занятий, без служебных полей RUZ.
- * id приводится к числу; совпадение без валидного id бесполезно (его не передать в расписание) — `undefined`.
+ * id приводится к числу. Совпадение без валидного id (его не передать в расписание) или без
+ * строковых label и type — `undefined`: иначе ответ не прошёл бы outputSchema и SDK отклонил бы
+ * весь вызов тула из-за одного совпадения.
  */
 export function toSearchSummary(result: SearchResult): SearchSummary | undefined {
   const id = toRuzId(result.id);
-  if (id === undefined) return undefined;
-  return { ...pickNonEmpty(result, SEARCH_FIELDS), id } as SearchSummary;
+  const fields = pickStrings(result, SEARCH_FIELDS);
+  if (id === undefined || fields.label === undefined || fields.type === undefined) return undefined;
+  return { ...fields, id } as SearchSummary;
 }
 
+/**
+ * Непустые строки и конечные числа из `keys`. Остальное (null, "", boolean, объекты) выкидывается:
+ * outputSchema тулов допускает только строки и числа, и одно кривое поле ломало бы весь ответ.
+ */
 function pickNonEmpty(
   source: Record<string, unknown>,
   keys: readonly string[]
-): Record<string, unknown> {
-  const picked: Record<string, unknown> = {};
+): Record<string, string | number> {
+  const picked: Record<string, string | number> = {};
   for (const key of keys) {
     const value = source[key];
-    if (value !== undefined && value !== null && value !== "") picked[key] = value;
+    if ((typeof value === "string" && value !== "") || Number.isFinite(value)) {
+      picked[key] = value as string | number;
+    }
   }
   return picked;
+}
+
+/** Как `pickNonEmpty`, но только строки — для полей, которые outputSchema описывает как string. */
+function pickStrings(
+  source: Record<string, unknown>,
+  keys: readonly string[]
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(pickNonEmpty(source, keys)).filter(([, v]) => typeof v === "string")
+  ) as Record<string, string>;
 }
 
 export const LESSON_FIELDS = [

@@ -7,7 +7,8 @@ import * as ruz from "./client.js";
 // coerce: RUZ в части версий API отдаёт id строкой, и модель передаёт его как есть.
 const RUZ_ID = z.coerce.number().int().positive();
 
-const DAYS_AHEAD = z
+// coerce и здесь: модели иногда передают числа строками.
+const DAYS_AHEAD = z.coerce
   .number()
   .int()
   .min(1)
@@ -101,7 +102,13 @@ export function registerRuzTools(server: McpServer): void {
           .min(2, "Строка поиска должна содержать хотя бы 2 символа")
           .describe("Строка поиска: часть ФИО, номер группы и т.п."),
         type: z.enum(ruz.SEARCH_TYPES).default("student"),
-        limit: z.number().int().min(1).max(100).default(20).describe("Сколько совпадений вернуть"),
+        limit: z.coerce
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .default(20)
+          .describe("Сколько совпадений вернуть"),
       },
       outputSchema: {
         results: z.array(
@@ -156,13 +163,15 @@ export function registerRuzTools(server: McpServer): void {
         "только из внутренней сети ВШЭ (Wi-Fi HSE.Student на кампусе или VPN) — вне сети запрос " +
         "вернёт ошибку.",
       inputSchema: {
-        email: z.string().email().describe("Корпоративный email студента, напр. ivanov@edu.hse.ru"),
+        email: z.email().describe("Корпоративный email студента, напр. ivanov@edu.hse.ru"),
         startDate: START_DATE,
         daysAhead: DAYS_AHEAD,
         language: LANGUAGE,
       },
       outputSchema: {
-        student: z.looseObject({ id: z.number() }).describe("Данные студента из RUZ studentinfo"),
+        student: z
+          .object({ id: z.number(), fio: z.string().optional(), info: z.string().optional() })
+          .describe("Студент из RUZ studentinfo: id, ФИО (fio) и info"),
         ...SCHEDULE_OUTPUT,
       },
       annotations: READ_ONLY,
