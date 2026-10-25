@@ -13,6 +13,8 @@ permissions:
 
 jobs:
   publish:
+    # Ручной запуск — только с master: иначе с любой ветки уйдёт в npm неопубликованная версия.
+    if: github.ref_type == 'tag' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
